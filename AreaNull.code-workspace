@@ -27,7 +27,8 @@
 			"vector": "c",
 			"string_view": "c",
 			"initializer_list": "c",
-			"text.h": "c"
+			"text.h": "c",
+			"mem.h": "c"
 		},
 		"editor.autoClosingBrackets": "never",
 		"editor.autoClosingComments": "always",

@@ -1,6 +1,7 @@
 #include "tty.h"
 #include "text.h"
 #include "interrupts.h"
+#include "memory.h"
 
 char buffer[30];
 
@@ -24,6 +25,15 @@ void main(){
     tty_put('\n');
 
     tty_fixed_header(1);
+
+    if(!mem_unlocked()) {
+        tty_setcolors(TTY_RED, TTY_WHITE);
+        tty_puts("A20 gate hasn't been unlocked\n");
+        return;
+    }
+
+    tty_puts("A20 gate has been unlocked\n");
+
 
     isr_init();
     irq_init();

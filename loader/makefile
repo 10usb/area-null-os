@@ -1,6 +1,6 @@
 include ../env.mk
 ENTRY=start.asm
-SOURCES=main.c tty.c text.c isr.c isr.asm irq.c
+SOURCES=main.c tty.c text.c isr.c isr.asm irq.c memory.c
 OBJECTS=$(patsubst %.asm,obj/asm/%.o,$(patsubst %.c,obj/c/%.o,$(SOURCES)))
 TARGET=loader.bin
 
