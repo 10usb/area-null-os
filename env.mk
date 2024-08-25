@@ -1,0 +1,19 @@
+# Define the root
+ROOT=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+INCLUDES=$(ROOT)includes
+DOSBIN=$(ROOT)dos/bin/
+
+ifeq ($(OS),Windows_NT)
+	SUFFIX=.exe
+else
+	SUFFIX=
+endif
+
+CC=/opt/cross/bin/i386-elf-gcc
+LD=/opt/cross/bin/i386-elf-ld
+RM=rm -rf
+FASM=fasm
+NASM=nasm
+MKDIR=mkdir
+DOSBOX=dosbox
+QEMU=qemu-system-i386

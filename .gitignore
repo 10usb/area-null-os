@@ -1,0 +1,5 @@
+loader/loader.bin
+boot/fatboot.bin
+floppy.img
+loader/obj
+.vscode
