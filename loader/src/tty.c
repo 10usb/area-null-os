@@ -1,4 +1,5 @@
 #include "tty.h"
+#include "text.h"
 
 static struct {
     tty_color_t color;
@@ -98,4 +99,39 @@ void tty_scroll(int lines, int start) {
     screen.cursor-= screen.width * lines;
     if(screen.cursor < screen.start)
         screen.cursor = screen.start;
+}
+
+void tty_print(int row, int column, int width, const char *str, int background, int foreground, tty_align_t align) {
+    int length = strlen(str);
+
+    int padding;
+    if (length >= width || align == TTY_LEFT) {
+        padding = 0;
+    } else switch (align) {
+        case TTY_CENTER: padding = (width - length) / 2; break;
+        case TTY_RIGHT: padding = width - length; break;
+    }
+
+    register ttychar_t *dst = screen.start + (screen.width * row) + column;
+    register ttychar_t blank = {
+        .color.background = background,
+        .color.foreground = foreground,
+        .value = ' '
+    };
+
+    while (padding--) {
+        *dst++ = blank;
+        width--;
+    }
+
+    while (*str) {
+        dst->value = *str++;
+        dst->color.background = background;
+        dst->color.foreground = foreground;
+        dst++;
+        width--;
+    }
+    
+    while (width--)
+        *dst++ = blank;
 }

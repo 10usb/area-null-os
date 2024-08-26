@@ -14,6 +14,13 @@ void myhandler(isr_frame_t *frame) {
     tty_setcolor(current);
 }
 
+int count = 0;
+
+void timer(int index, isr_frame_t *frame) {
+    if((count++ % 10) == 0)
+        tty_print(0, 70, 9, itos(count/10, buffer, 30, 10), TTY_WHITE, TTY_BLACK, TTY_RIGHT);
+}
+
 void main(){
     tty_init(80, 25, (void*)0xb8000);
     tty_clear();
@@ -23,6 +30,8 @@ void main(){
 
     tty_setcolors(TTY_BLACK, TTY_WHITE);
     tty_put('\n');
+
+    tty_print(0, 70, 10, "", TTY_WHITE, TTY_BLACK, TTY_RIGHT);
 
     tty_fixed_header(1);
 
@@ -41,4 +50,7 @@ void main(){
 
     isr_install(0x25, myhandler);
     __asm__ volatile ("int %0" : : "i"(0x25));
+
+    irq_install(0, timer);
+    irg_enable(0, 1);
 }

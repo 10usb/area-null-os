@@ -141,7 +141,6 @@ void irg_enable(int index, int enabled) {
 
 void irq_install(int index, irq_vector_t callback) {
     handlers[index] = callback;
-    irg_enable(index, 1);
 }
 
 static void irq_handler(isr_frame_t *frame) {

@@ -42,4 +42,12 @@ void tty_put(char c);
 void tty_puts(const char *str);
 void tty_scroll(int lines, int start);
 
+typedef enum {
+    TTY_LEFT,
+    TTY_CENTER,
+    TTY_RIGHT
+} tty_align_t;
+
+void tty_print(int row, int column, int width, const char *str, int background, int foreground, tty_align_t align);
+
 #endif
