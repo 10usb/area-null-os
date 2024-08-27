@@ -1,13 +1,7 @@
 #include "interrupts.h"
 #include "tty.h"
 #include "text.h"
-
-static inline void memset(void *dst, uint8_t value, size_t n) {
-    register uint8_t *d = dst;
-
-    while (n-- > 0)
-        *d++ = value;
-}
+#include "memory.h"
 
 #define NUM_ISRS 48
 
