@@ -5,7 +5,7 @@
 #include "rtc.h"
 
 
-static char buffer[30];
+static char buffer[50];
 
 void myhandler(isr_frame_t *frame) {
     tty_color_t current = tty_getcolor();
@@ -21,8 +21,12 @@ int count = 0;
 static char timer_buffer[30];
 
 void timer(int index, isr_frame_t *frame) {
-    if((count++ % 10) == 0)
-        tty_print(0, 70, 9, itos(count/10, timer_buffer, 30, 10), TTY_WHITE, TTY_BLACK, TTY_RIGHT);
+    if((count++ % 10) == 0){
+        time_t time;
+        rtc_get(&time);
+        snprintf(timer_buffer, 30, "%02d-%02d-%02d %02d:%02d:%02d", time.day, time.month, time.year, time.hour, time.minute, time.second);
+        tty_print(0, 61, 19, timer_buffer, TTY_WHITE, TTY_BLACK, TTY_CENTER);
+    }
 }
 
 void main(){
@@ -34,8 +38,6 @@ void main(){
 
     tty_setcolors(TTY_BLACK, TTY_WHITE);
     tty_put('\n');
-
-    tty_print(0, 70, 10, "", TTY_WHITE, TTY_BLACK, TTY_RIGHT);
 
     tty_fixed_header(1);
 
@@ -52,25 +54,9 @@ void main(){
     irq_init();
     
 
-    isr_install(0x25, myhandler);
-    __asm__ volatile ("int %0" : : "i"(0x25));
-
     irq_install(0, timer);
     irg_enable(0, 1);
 
-    time_t time;
-    rtc_get(&time);
-
-    tty_puts(itos(time.day, buffer, 30, 10));
-    tty_put('-');
-    tty_puts(itos(time.month, buffer, 30, 10));
-    tty_put('-');
-    tty_puts(itos(time.year, buffer, 30, 10));
-    tty_put(' ');
-    tty_puts(itos(time.hour, buffer, 30, 10));
-    tty_put(':');
-    tty_puts(itos(time.minute, buffer, 30, 10));
-    tty_put(':');
-    tty_puts(itos(time.second, buffer, 30, 10));
-    tty_put('\n');
+    isr_install(0x25, myhandler);
+    __asm__ volatile ("int %0" : : "i"(0x25));
 }
