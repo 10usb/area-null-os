@@ -28,6 +28,8 @@ deps:
 
 clean:
 	$(RM) $(TARGET)
+	@$(MAKE) --no-print-directory -C boot clean
+	@$(MAKE) --no-print-directory -C loader clean
 
 rebuild: clean $(TARGET)
 

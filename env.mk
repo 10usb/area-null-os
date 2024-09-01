@@ -11,6 +11,7 @@ endif
 
 CC=/opt/cross/bin/i386-elf-gcc
 LD=/opt/cross/bin/i386-elf-ld
+OBJCOPY=/opt/cross/bin/i386-elf-objcopy
 RM=rm -rf
 FASM=fasm
 NASM=nasm

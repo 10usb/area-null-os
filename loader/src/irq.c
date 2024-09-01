@@ -90,7 +90,7 @@ void irq_init() {
     irq_mask_t mask = irg_get_mask();
 
     // Print for debugging
-    irq_print_mask(mask);
+    //irq_print_mask(mask);
 
     // Starts the initialization sequence (in cascade mode)
 	outb(MASTER_CTRL, ICW1_INIT);
