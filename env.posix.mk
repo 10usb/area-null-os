@@ -1,0 +1,18 @@
+# Define the root
+ROOT=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+INCLUDES=$(ROOT)includes
+DOSBIN=$(ROOT)dos/bin/
+
+ifeq ($(OS),Windows_NT)
+	SUFFIX=.exe
+else
+	SUFFIX=
+endif
+
+CC=gcc
+LD=ld
+OBJCOPY=objcopy
+RM=rm -rf
+FASM=fasm
+NASM=nasm
+MKDIR=mkdir

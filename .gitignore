@@ -1,5 +1,7 @@
-loader/loader.bin
-boot/fatboot.bin
-floppy.img
-loader/obj
+*.bin
+*.o
+*.exe
+*.img
+AreaNull.code-workspace
+
 .vscode
