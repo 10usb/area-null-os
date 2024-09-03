@@ -2,6 +2,7 @@
 ROOT=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 INCLUDES=$(ROOT)includes
 DOSBIN=$(ROOT)dos/bin/
+ENVDIR=posix
 
 ifeq ($(OS),Windows_NT)
 	SUFFIX=.exe
@@ -15,4 +16,4 @@ OBJCOPY=objcopy
 RM=rm -rf
 FASM=fasm
 NASM=nasm
-MKDIR=mkdir
+MKDIR=mkdir -p
