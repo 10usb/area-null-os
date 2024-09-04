@@ -32,7 +32,11 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
 
         ctx->extended = &bpb->fat32.extended;
         ctx->bootSector = &bpb->fat32.bootSector;
-        ctx->signature = &bpb->fat32.signature;
+        if (bpb->fat32.bootSector.extendedBootSignature == 0x29) {
+            ctx->signature = &bpb->fat32.signature;
+        } else {
+            ctx->signature = 0;
+        }
 
 
         // The sector size of the all the fat copies
@@ -46,7 +50,12 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
     } else {
         ctx->extended = 0;
         ctx->bootSector = &bpb->fat1x.bootSector;
-        ctx->signature = &bpb->fat1x.signature;
+
+        if (bpb->fat1x.bootSector.extendedBootSignature == 0x29) {
+            ctx->signature = &bpb->fat1x.signature;
+        } else {
+            ctx->signature = 0;
+        }
 
         // The sector size of the all the fat copies
         uint32_t fatSize = bpb->header.sectorsPerFat * bpb->header.numberOfFatCopies;

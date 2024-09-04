@@ -130,6 +130,7 @@ struct FATDirectoryEntry {
     uint32_t fileSize;
 } __attribute__((__packed__));
 
+#define FAT_SUCCESS		             0
 #define FAT_ERR_MINIMUM_SIZE		-1
 #define FAT_ERR_INVALID_FAT32 		-2
 #define FAT_ERR_INVALID_FAT12_OR_16	-1
