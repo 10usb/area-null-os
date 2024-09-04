@@ -1,6 +1,8 @@
 *
 !*.*
 !*/
+!makefile
+!LICENSE
 *.bin
 *.o
 *.exe

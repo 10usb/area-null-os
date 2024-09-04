@@ -1,7 +1,7 @@
 include ../../env.posix.mk
 SOURCES=blockstream.c
 OBJECTS=$(SOURCES:%.c=obj/%.o)
-TARGET=libposix.o
+TARGET=libposix-adapter.o
 
 $(TARGET): $(OBJECTS)
 	$(LD) -i -o $@ $(OBJECTS)

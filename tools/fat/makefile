@@ -4,7 +4,7 @@ OBJECTS=$(SOURCES:%.c=obj/%.o)
 DEPENDANCIES=libfat-readonly
 LIBS=$(foreach x, $(DEPENDANCIES), $(ROOT)libs/$(x)/$(x).posix.o)
 
-POSIX_DEPENDANCIES=libposix
+POSIX_DEPENDANCIES=libposix-adapter
 POSIX_LIBS=$(foreach x, $(POSIX_DEPENDANCIES), $(ROOT)libs/$(x)/$(x).o)
 TARGET=fat$(SUFFIX)
 
