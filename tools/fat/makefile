@@ -9,7 +9,9 @@ POSIX_DEPENDANCIES=libposix-adapter
 POSIX_LIBS=$(foreach x, $(POSIX_DEPENDANCIES), $(ROOT)libs/$(x)/$(x).o)
 TARGET=fat$(SUFFIX)
 
-$(TARGET): $(OBJECTS) | deps
+build: deps $(TARGET)
+
+$(TARGET): $(OBJECTS) $(LIBS) $(POSIX_LIBS)
 	$(CC) -Wall -o $@ $(OBJECTS) $(LIBS) $(POSIX_LIBS)
 
 obj/c/%.o: src/%.c | obj/c
@@ -18,7 +20,9 @@ obj/c/%.o: src/%.c | obj/c
 obj/c:
 	$(MKDIR) $@
 
-deps: | $(LIBS) $(POSIX_LIBS)
+deps:
+	@$(foreach x,$(LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) ENV=.posix)
+	@$(foreach x,$(POSIX_LIBS),$(MAKE) --no-print-directory -C $(dir $(x)))
 
 $(LIBS):
 	@$(MAKE) --no-print-directory -C $(dir $@) ENV=.posix
@@ -33,4 +37,4 @@ clean-all: clean
 	@$(foreach x,$(LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean)
 	@$(foreach x,$(POSIX_LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean)
 
-.PHONY: clean clean-all deps $(LIBS) $(POSIX_LIBS)
+.PHONY: build clean clean-all deps

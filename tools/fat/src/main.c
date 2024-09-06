@@ -32,6 +32,9 @@ static int print_help(int value) {
     return value;
 }
 
+/**
+ * 
+ */
 static void print_info(struct FATContext *ctx) {
 	printf("--- Disk Info --- (ambiguous)\n");
 	printf("Bytes per sector              %5d\n", ctx->header->bytesPerSector);
@@ -80,6 +83,11 @@ static void print_info(struct FATContext *ctx) {
     }
     printf("\n");
 
+	printf("--- Caclculated ---\n");
+    printf("Start root directory       %8d\n", ctx->startOfRootDirectory);
+    printf("First data sector          %8d\n", ctx->startOfData);
+    printf("Number of clusters         %8d\n", ctx->numberOfClusters);
+    printf("Buffer size                %8ld\n", ctx->bufferSize);
 }
 
 /**
@@ -121,6 +129,95 @@ static inline int main_info(int argc, char** argv) {
 }
 
 /**
+ * Show info about the image
+ * 
+ * @param[in]  argc  The argc
+ * @param      argv  The argv
+ *
+ * @return     program exit code
+ */
+static inline int main_list(int argc, char** argv) {
+    if(argc < 1){
+        printf("Not enough arguments\n");
+        return print_help(1);
+    }
+
+    struct BlockDevice *device = malloc(posix_stream_device_size());
+    if(!posix_get_stream_device(device, argv[0], 512)){
+        printf("Failed to open file command '%s'\n", argv[0]);
+        free(device);
+        return 1;
+    }
+
+    struct FATContext *ctx =  malloc(0x100000);
+    if(fat_init_context(ctx, 0x100000, device) != FAT_SUCCESS){
+        printf("Failed to load filesystem\n");
+        goto error;
+    }
+
+    const char *path = "SYSTEM";
+
+    struct FATDirectoryEntry directory;
+    int32_t count = fat_find_file(ctx, &directory, 1, path);
+    if (count <= 0) {
+        printf("Directory not found\n");
+        goto error;
+    }
+
+    printf("Found %d entries\n", count);
+
+    struct FATDirectoryEntry *entries = malloc(sizeof(struct FATDirectoryEntry) * count);
+
+    if (fat_find_file(ctx, entries, count, path) != count){
+        printf("Failed to read entries\n");
+        free(entries);
+        goto error;
+    }
+
+    printf("\n");
+
+    struct FATDirectoryEntry *cursor = entries;
+    for(int32_t index = 0; index < count; index++, cursor++) {
+        printf("%.8s %.3s %c%c%c%c%c %8d %8d - %02d-%02d-%04d %02d:%02d:%02d - %02d-%02d-%04d %02d:%02d:%02d\n",
+            cursor->shortName,
+            cursor->extension,
+            cursor->attributes.directory ? 'D' : '-',
+            cursor->attributes.readOnly ? 'R' : 'W',
+            cursor->attributes.hidden ? 'H' : '-',
+            cursor->attributes.system ? 'S' : '-',
+            cursor->attributes.archive ? 'A' : '-',
+            cursor->fileSize,
+            cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16),
+            cursor->created.date.day,
+            cursor->created.date.month,
+            cursor->created.date.year + 1980,
+            cursor->created.time.hours,
+            cursor->created.time.minutes,
+            cursor->created.time.seconds,
+            cursor->modified.date.day,
+            cursor->modified.date.month,
+            cursor->modified.date.year + 1980,
+            cursor->modified.time.hours,
+            cursor->modified.time.minutes,
+            cursor->modified.time.seconds
+        );
+    }
+
+
+
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 0;
+    
+    error:
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 1;
+}
+
+/**
  * Main entry for program
  *
  * @param[in]  argc  The argc
@@ -139,6 +236,9 @@ int main(int argc, char** argv){
 
     if (strcmp(argv[1], "info") == 0)
          return main_info(argc - 2, argv + 2);
+
+    if (strcmp(argv[1], "list") == 0)
+         return main_list(argc - 2, argv + 2);
 
     printf("Unknown command '%s'\n", argv[1]);
     return print_help(1);

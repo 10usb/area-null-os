@@ -80,8 +80,10 @@ struct FATContext {
     struct FATSignature *signature;
     uint32_t startOfRootDirectory;
     uint32_t startOfData;
+    uint32_t numberOfClusters;
     void *fat;
     void *buffer;
+    size_t bufferSize;
 };
 
 struct FATTime {
@@ -95,6 +97,19 @@ struct FATDate {
     uint16_t month : 4;
     uint16_t year : 7;
 } __attribute__((__packed__));
+
+union FATAttributes {
+    uint8_t value;
+    struct {
+        uint8_t readOnly : 1;
+        uint8_t hidden : 1;
+        uint8_t system : 1;
+        uint8_t volumeId : 1;
+        uint8_t directory : 1;
+        uint8_t archive : 1;
+    } __attribute__((__packed__));
+};
+
 
 #define FAT_ATTR_READ_ONLY	0x01
 #define FAT_ATTR_HIDDEN		0x02
@@ -112,8 +127,7 @@ struct FATDirectoryEntry {
             uint8_t extension[3];
         } __attribute__((__packed__));
     };
-    
-    uint8_t attributes;
+    union FATAttributes attributes;
     uint8_t reserved;
     struct {
         uint8_t miliseconds;
@@ -125,7 +139,7 @@ struct FATDirectoryEntry {
     struct {
         struct FATTime time;
         struct FATDate date;
-    } __attribute__((__packed__)) write;
+    } __attribute__((__packed__)) modified;
     uint16_t firstClusterLowWord;
     uint32_t fileSize;
 } __attribute__((__packed__));
@@ -133,7 +147,9 @@ struct FATDirectoryEntry {
 #define FAT_SUCCESS		             0
 #define FAT_ERR_MINIMUM_SIZE		-1
 #define FAT_ERR_INVALID_FAT32 		-2
-#define FAT_ERR_INVALID_FAT12_OR_16	-1
+#define FAT_ERR_INVALID_FAT12_OR_16	-3
+#define FAT_ERR_FAILED_READ	        -4
+#define FAT_ERR_FAILED_READ_FAT     -5
 
 /**
  * Reads the headers from the device and prepares the context for use.
@@ -157,6 +173,6 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
  *  @param path 	A null-delimited string with the short entry path to be found
  *  @return Number of entries found
  */
-size_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries, size_t size, char *path);
+int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries, int32_t size, const char *path);
 
 #endif
