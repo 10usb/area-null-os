@@ -150,97 +150,49 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
 
     uint8_t segment[11];
     uint32_t clusterIndex = ctx->extended ? ctx->extended->rootCluster : 0;
+    int hasPath;
+    int32_t count = 0;
 
-next:
-    if (!*path){
-        // Read dir into entries
+    next:
 
-        int32_t count = 0;
+    // Remove any traling slashes
+    while (*path == '/' || *path == '\\') 
+        path++;
 
-        if (clusterIndex == 0) {
-            uint32_t sectorCount = ctx->startOfData - ctx->startOfRootDirectory;
-            uint32_t entriesCount = ctx->header->numberOfRootEntries;
-
-            uint32_t read = ctx->device->read(ctx->device, ctx->startOfRootDirectory, sectorCount, ctx->buffer);
-
-            if(read != sectorCount)
-                return 0;
-
-            struct FATDirectoryEntry *cursor = ctx->buffer;
-
-            for (uint32_t index = 0; index < entriesCount; index++, cursor++) {
-                // This search method is for the short name so skip these
-                if ((cursor->attributes.value & FAT_ATTR_LONG_NAME) == FAT_ATTR_LONG_NAME)
-                    continue;
-
-                // End readed
-                if (cursor->name[0] == 0)
-                    break;
-
-                // Entry is empty
-                if (cursor->name[0] == 0xE5)
-                    continue;
-
-                if(count < size)
-                    memcpy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
-                
-                count++;
-            }
-        } else {
-            // Read cluster, extract entries, repeat until last entry found or running out of clusters to read
-            uint32_t sectorCount = ctx->header->sectorsPerCluster;
-            uint32_t entriesCount = sectorCount * ctx->header->bytesPerSector / 32;
-            uint16_t sectorIndex = ctx->startOfData + ((clusterIndex - 2) * sectorCount);
-
-            uint32_t read = ctx->device->read(ctx->device, sectorIndex, sectorCount, ctx->buffer);
-            if(read != sectorCount)
-                return 0;
-            
-            struct FATDirectoryEntry *cursor = ctx->buffer;
-
-            for (uint32_t index = 0; index < entriesCount; index++, cursor++) {
-                // This search method is for the short name so skip these
-                if ((cursor->attributes.value & FAT_ATTR_LONG_NAME) == FAT_ATTR_LONG_NAME)
-                    continue;
-
-                // End readed
-                if (cursor->name[0] == 0)
-                    break;
-
-                // Entry is empty
-                if (cursor->name[0] == 0xE5)
-                    continue;
-
-                if(count < size)
-                    memcpy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
-                
-                count++;
-            }
-            
-            // TODO: get next clusterIndex in the chain
-        }
-
-        return count;
-    } else {
-        // Find entry matching path
-        // set cluster index with that of the entry and repeat
+    // If de path is not empty turn first segment into directory
+    // format for easy compare
+    hasPath = *path ? 1 : 0;
+    if(hasPath){
         uint8_t *ptr = segment;
 
-        for (int i = 0; i < 11; i++) {
-            switch (*path) {
-                case '/':
-                case '\\':
-                case '\0':
-                    *ptr++ = 0x20;
-                break;
-                case '.':
-                    if (i < 8) {
+        if (*path == '.') {
+            *ptr++ = *path++;
+            int i = 1;
+
+            if(*path == '.'){
+                *ptr++ = *path++;
+                i++;
+            }
+
+            for (; i < 11; i++)
+                *ptr++ = 0x20;
+        } else {
+            for (int i = 0; i < 11; i++) {
+                switch (*path) {
+                    case '/':
+                    case '\\':
+                    case '\0':
                         *ptr++ = 0x20;
-                        break;
-                    }
-                    path++;
-                default:
-                    *ptr++ = *path++;
+                    break;
+                    case '.':
+                        if (i < 8) {
+                            *ptr++ = 0x20;
+                            break;
+                        }
+                        path++;
+                    default:
+                        *ptr++ = *path++;
+                }
             }
         }
 
@@ -249,41 +201,84 @@ next:
         } else if(*path != '\0') {
             return 0;
         }
+    }
 
-        if (clusterIndex == 0) {
-            uint32_t sectorCount = ctx->startOfData - ctx->startOfRootDirectory;
-            uint32_t entriesCount = ctx->header->numberOfRootEntries;
+    if (clusterIndex == 0) {
+        uint32_t sectorCount = ctx->startOfData - ctx->startOfRootDirectory;
+        uint32_t entriesCount = ctx->header->numberOfRootEntries;
 
-            uint32_t read = ctx->device->read(ctx->device, ctx->startOfRootDirectory, sectorCount, ctx->buffer);
+        uint32_t read = ctx->device->read(ctx->device, ctx->startOfRootDirectory, sectorCount, ctx->buffer);
 
-            if(read != sectorCount)
-                return 0;
+        if(read != sectorCount)
+            return 0;
 
-            struct FATDirectoryEntry *cursor = ctx->buffer;
+        struct FATDirectoryEntry *cursor = ctx->buffer;
 
-            for (uint32_t index = 0; index < entriesCount; index++, cursor++) {
-                // This search method is for the short name so skip these
-                if ((cursor->attributes.value & FAT_ATTR_LONG_NAME) == FAT_ATTR_LONG_NAME)
-                    continue;
+        for (uint32_t index = 0; index < entriesCount; index++, cursor++) {
+            // This search method is for the short name so skip these
+            if ((cursor->attributes.value & FAT_ATTR_LONG_NAME) == FAT_ATTR_LONG_NAME)
+                continue;
 
-                // End readed
-                if (cursor->name[0] == 0)
-                    break;
+            // End readed
+            if (cursor->name[0] == 0)
+                break;
 
-                // Entry is empty
-                if (cursor->name[0] == 0xE5)
-                    continue;
-                
+            // Entry is empty
+            if (cursor->name[0] == 0xE5)
+                continue;
+            
+            if (hasPath) {
                 if (memcmp(segment, cursor->name, 11) == 0) {
                     clusterIndex = cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16);
                     goto next;
                 }
+            } else {
+                if(count < size)
+                    memcpy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
+                                    
+                count++;
             }
-        } else {
-            // Read cluster, extract entries, repeat until last entry found or running out of clusters to read
-            printf("Find in clusterIndex: %d\n", clusterIndex);
         }
+    } else {
+        // Read cluster, extract entries, repeat until last entry found or running out of clusters to read
+        uint32_t sectorCount = ctx->header->sectorsPerCluster;
+        uint32_t entriesCount = sectorCount * ctx->header->bytesPerSector / 32;
+        uint16_t sectorIndex = ctx->startOfData + ((clusterIndex - 2) * sectorCount);
+
+        uint32_t read = ctx->device->read(ctx->device, sectorIndex, sectorCount, ctx->buffer);
+        if(read != sectorCount)
+            return 0;
+        
+        struct FATDirectoryEntry *cursor = ctx->buffer;
+
+        for (uint32_t index = 0; index < entriesCount; index++, cursor++) {
+            // This search method is for the short name so skip these
+            if ((cursor->attributes.value & FAT_ATTR_LONG_NAME) == FAT_ATTR_LONG_NAME)
+                continue;
+
+            // End readed
+            if (cursor->name[0] == 0)
+                break;
+
+            // Entry is empty
+            if (cursor->name[0] == 0xE5)
+                continue;
+
+            if (hasPath) {
+                if (memcmp(segment, cursor->name, 11) == 0) {
+                    clusterIndex = cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16);
+                    goto next;
+                }
+            } else {
+                if(count < size)
+                    memcpy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
+                                    
+                count++;
+            }
+        }
+        
+        // TODO: get next clusterIndex in the chain
     }
 
-    return 0;
+    return count;
 }

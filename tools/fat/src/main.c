@@ -155,7 +155,7 @@ static inline int main_list(int argc, char** argv) {
         goto error;
     }
 
-    const char *path = "SYSTEM";
+    const char *path = "PROGRAMS/../SYSTEM";
 
     struct FATDirectoryEntry directory;
     int32_t count = fat_find_file(ctx, &directory, 1, path);
