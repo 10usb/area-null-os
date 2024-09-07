@@ -155,7 +155,9 @@ static inline int main_list(int argc, char** argv) {
         goto error;
     }
 
-    const char *path = "PROGRAMS/../SYSTEM";
+    const char *path = "";
+    if(argc >= 2)
+        path = argv[1];
 
     struct FATDirectoryEntry directory;
     int32_t count = fat_find_file(ctx, &directory, 1, path);
@@ -202,8 +204,7 @@ static inline int main_list(int argc, char** argv) {
             cursor->modified.time.seconds
         );
     }
-
-
+    free(entries);
 
     device->action(device, BLOCK_DEVICE_CLOSE);
     free(device);

@@ -118,19 +118,29 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
     return FAT_SUCCESS;
 }
 
+/**
+ * To test if an index value is a EOC mark
+ */
+static inline int is_eoc(struct FATContext *ctx, uint32_t index){
+    // The first 2 don't exist
+    if (index < 2 || index >= ctx->numberOfClusters)
+        return 1;
 
-static inline int is_eoc(enum FATType type, uint32_t index){
-    switch(type){
+    switch (ctx->type) {
         case FAT12: return index >= FAT12_EOC;
         case FAT16: return index >= FAT16_EOC;
         case FAT32: return index >= FAT32_EOC;
     }
-    // In case we didn't know its the end
+
+    // In case we didn't know it's the end
     return 1;
 }
 
+/**
+ * Reads the value in the fat at index
+ */ 
 uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index){
-    switch(ctx->type){
+    switch (ctx->type) {
         case FAT12:
             uint16_t *ptr = ctx->fat + (index + index / 2);
             return *ptr & 0xFFF;
@@ -139,16 +149,23 @@ uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index){
         case FAT32:
             return ((uint32_t*)ctx->fat)[index];
     }
+
     return 0;
 }
 
+/**
+ * Structure to keep track where we are at reading
+ */
 struct FATDirectoryReader {
     uint32_t clusterIndex;
-    uint32_t entriesCount;
     uint32_t sectorCount;
-    uint16_t sectorIndex;
+    uint32_t sectorIndex;
+    uint32_t entriesCount;
 };
 
+/**
+ * Reads a single cluster or the whole root directory
+ */
 static inline int fat_directory_reader_read(struct FATContext *ctx, struct FATDirectoryReader *reader){
     if (reader->clusterIndex == 0) {
         reader->sectorCount = ctx->startOfData - ctx->startOfRootDirectory;
@@ -166,11 +183,13 @@ static inline int fat_directory_reader_read(struct FATContext *ctx, struct FATDi
     return read == reader->sectorCount;
 }
 
+/**
+ * Check to see if there are any more clusters to read
+ */
 static inline int fat_directory_reader_next(struct FATContext *ctx, struct FATDirectoryReader *reader){
     if (reader->clusterIndex != 0) {
         reader->clusterIndex = fat_next_cluster(ctx, reader->clusterIndex);
-        printf("cluster index %03X\n", reader->clusterIndex);
-        return !is_eoc(ctx->type, reader->clusterIndex);
+        return !is_eoc(ctx, reader->clusterIndex);
     }
 
     return 0;
@@ -189,23 +208,6 @@ static inline int fat_directory_reader_next(struct FATContext *ctx, struct FATDi
  *  @return Number of entries found
  */
 int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries, int32_t size, const char *path) {
-    // 1 - Load root directory
-    // 2 - if path is empty
-    //   2.1 - fill entries up to size
-    //   2.2 - read untill end and return count
-    // 3 - if path not empty
-    //   3.1 - search for entry matching name
-    //   3.2 - if directory
-    //      3.2.1 - load directory
-    //      3.2.2 - goto 2
-    //   3.3 - if file
-    //      3.3.1 - if next path segment is empty
-    //        3.3.1.2 - fill first entry
-    //        3.3.1.3 - return 1
-    //      3.3.2 - if next path segment is not empty
-    //        3.3.2.1 - return 0
-    //   3.4 - if not found return 0
-
     uint8_t segment[11];
     struct FATDirectoryReader reader;
     reader.clusterIndex = ctx->extended ? ctx->extended->rootCluster : 0;
@@ -213,7 +215,6 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
     int32_t count = 0;
 
     next:
-
     // Remove any traling slashes
     while (*path == '/' || *path == '\\') 
         path++;
@@ -221,7 +222,7 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
     // If de path is not empty turn first segment into directory
     // format for easy compare
     hasPath = *path ? 1 : 0;
-    if(hasPath){
+    if (hasPath) {
         uint8_t *ptr = segment;
 
         if (*path == '.') {
@@ -266,7 +267,7 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
         if(!fat_directory_reader_read(ctx, &reader))
             return 0;
         
-        struct FATDirectoryEntry *cursor = ctx->buffer;
+        register struct FATDirectoryEntry *cursor = ctx->buffer;
 
         for (uint32_t index = 0; index < reader.entriesCount; index++, cursor++) {
             // This search method is for the short name so skip these
@@ -283,8 +284,19 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
 
             if (hasPath) {
                 if (memcmp(segment, cursor->name, 11) == 0) {
-                    reader.clusterIndex = cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16);
-                    goto next;
+                    if (cursor->attributes.directory) {
+                        reader.clusterIndex = cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16);
+                        goto next;
+                    } else {
+                        // When there more path to traverse we did't find it.
+                        if(*path)
+                            return 0;
+
+                        if(size > 0)
+                            memcpy(entries, cursor, sizeof(struct FATDirectoryEntry));
+
+                        return 1;
+                    }
                 }
             } else {
                 if(count < size)
@@ -294,6 +306,11 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
             }
         }
     } while (fat_directory_reader_next(ctx, &reader));
+    done:
 
+    // We can safely return count when we haven't found the file
+    // we were looking for. The counter only gets incremented
+    // when the last segment pointed to a directory. Otherwise
+    // it stays untouched.
     return count;
 }
