@@ -161,6 +161,19 @@ struct FATDirectoryEntry {
  */
 int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *device);
 
+#define FAT12_EOC 0x0FF8
+#define FAT16_EOC 0xFFF8
+#define FAT32_EOC 0x0FFFFFF8
+
+/**
+ * To het the next cluster of a given cluster
+ * 
+ * @param ctx   The context
+ * @param index The cluster index to get the next entry of
+ * @return The value of the next cluster or a EOC mark
+ */
+uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index);
+
 /**
  * When it find the file it will return it entry, when it has a long name and size would
  * fit the name, the entries will be filled with does entries, otherwise it will return
