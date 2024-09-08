@@ -1,7 +1,5 @@
 #include <fs/fat.h>
 #include <memory.h>
-#include <stdio.h>
-#include <string.h>
 
 // To make sure our code is memory safe
 typedef char p__LINE__[ (sizeof(struct FATContext) >= 11) ? 1 : -1];
@@ -175,7 +173,7 @@ size_t fat_read_cluster(struct FATContext *ctx, uint32_t index, void *dst, size_
     if(size > sectorCount * ctx->header->bytesPerSector)
         size = sectorCount * ctx->header->bytesPerSector;
 
-    memcpy(dst, ctx->buffer, size);
+    memory_copy(dst, ctx->buffer, size);
     return size;
 }
 
@@ -309,7 +307,7 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
                 continue;
 
             if (hasPath) {
-                if (memcmp(segment, cursor->name, 11) == 0) {
+                if (memory_compare(segment, cursor->name, 11) == 0) {
                     if (cursor->attributes.directory) {
                         reader.clusterIndex = cursor->firstClusterLowWord | (cursor->firstClusterHighWord << 16);
                         goto next;
@@ -319,14 +317,14 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
                             return 0;
 
                         if(size > 0)
-                            memcpy(entries, cursor, sizeof(struct FATDirectoryEntry));
+                            memory_copy(entries, cursor, sizeof(struct FATDirectoryEntry));
 
                         return 1;
                     }
                 }
             } else {
                 if(count < size)
-                    memcpy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
+                    memory_copy(entries + count, cursor, sizeof(struct FATDirectoryEntry));
                                     
                 count++;
             }
