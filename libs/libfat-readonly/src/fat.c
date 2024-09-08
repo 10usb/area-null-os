@@ -119,9 +119,26 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
 }
 
 /**
+ * Reads the value in the fat at index
+ */ 
+uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index) {
+    switch (ctx->type) {
+        case FAT12:
+            uint16_t *ptr = ctx->fat + (index + index / 2);
+            return *ptr & 0xFFF;
+        case FAT16:
+            return ((uint16_t*)ctx->fat)[index];
+        case FAT32:
+            return ((uint32_t*)ctx->fat)[index];
+    }
+
+    return 0;
+}
+
+/**
  * To test if an index value is a EOC mark
  */
-static inline int is_eoc(struct FATContext *ctx, uint32_t index){
+static inline int is_eoc(struct FATContext *ctx, uint32_t index) {
     // The first 2 don't exist
     if (index < 2 || index >= ctx->numberOfClusters)
         return 1;
@@ -137,25 +154,34 @@ static inline int is_eoc(struct FATContext *ctx, uint32_t index){
 }
 
 /**
- * Reads the value in the fat at index
- */ 
-uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index){
-    switch (ctx->type) {
-        case FAT12:
-            uint16_t *ptr = ctx->fat + (index + index / 2);
-            return *ptr & 0xFFF;
-        case FAT16:
-            return ((uint16_t*)ctx->fat)[index];
-        case FAT32:
-            return ((uint32_t*)ctx->fat)[index];
-    }
-
-    return 0;
+ * Public method of the static inline version
+ */
+int fat_is_eoc(struct FATContext *ctx, uint32_t index){
+    return is_eoc(ctx, index);
 }
 
 /**
- * Structure to keep track where we are at reading
+ * Reads the contents of the cluster into the buffer
  */
+size_t fat_read_cluster(struct FATContext *ctx, uint32_t index, void *dst, size_t size) {
+    uint32_t sectorCount = ctx->header->sectorsPerCluster;
+    uint32_t sectorIndex = ctx->startOfData + ((index - 2) * sectorCount);
+
+    uint32_t read = ctx->device->read(ctx->device, sectorIndex, sectorCount, ctx->buffer);
+    
+    if (read != sectorCount)
+        return 0;
+
+    if(size > sectorCount * ctx->header->bytesPerSector)
+        size = sectorCount * ctx->header->bytesPerSector;
+
+    memcpy(dst, ctx->buffer, size);
+    return size;
+}
+
+/**
+  * Structure to keep track where we are at reading
+  */
 struct FATDirectoryReader {
     uint32_t clusterIndex;
     uint32_t sectorCount;
@@ -166,7 +192,7 @@ struct FATDirectoryReader {
 /**
  * Reads a single cluster or the whole root directory
  */
-static inline int fat_directory_reader_read(struct FATContext *ctx, struct FATDirectoryReader *reader){
+static inline int fat_directory_reader_read(struct FATContext *ctx, struct FATDirectoryReader *reader) {
     if (reader->clusterIndex == 0) {
         reader->sectorCount = ctx->startOfData - ctx->startOfRootDirectory;
         reader->entriesCount = ctx->header->numberOfRootEntries;

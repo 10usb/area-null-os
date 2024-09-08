@@ -26,8 +26,8 @@ static int print_help(int value) {
     printf("  -hN    Number of hidden sectors preceding the filesystem\n");
     printf("  -cN    Number of sectors per cluster\n");
     printf(" fat list <file> [path]\n");
-    printf(" fat store <file> <path> <source>\n");
     printf(" fat load <file> <path> <destination>\n");
+    printf(" fat store <file> <path> <source>\n");
     printf(" fat remove <file> <path>\n");
     return value;
 }
@@ -219,6 +219,97 @@ static inline int main_list(int argc, char** argv) {
 }
 
 /**
+ * Show info about the image
+ * 
+ * @param[in]  argc  The argc
+ * @param      argv  The argv
+ *
+ * @return     program exit code
+ */
+static inline int main_load(int argc, char** argv) {
+    if(argc < 3){
+        printf("Not enough arguments\n");
+        return print_help(1);
+    }
+
+    struct BlockDevice *device = malloc(posix_stream_device_size());
+    if(!posix_get_stream_device(device, argv[0], 512)){
+        printf("Failed to open file command '%s'\n", argv[0]);
+        free(device);
+        return 1;
+    }
+
+    struct FATContext *ctx =  malloc(0x100000);
+    if(fat_init_context(ctx, 0x100000, device) != FAT_SUCCESS){
+        printf("Failed to load filesystem\n");
+        goto error;
+    }
+
+    struct FATDirectoryEntry entry;
+    int32_t count = fat_find_file(ctx, &entry, 1, argv[1]);
+    
+    if (count <= 0) {
+        printf("File not found\n");
+        goto error;
+    }
+
+    if(entry.attributes.directory) {
+        printf("Path is a directory\n");
+        goto error;
+    }
+
+    FILE *f = fopen(argv[2], "w");
+    if (!f) {
+        printf("Failed to open file\n");
+        goto error;
+    }
+
+    size_t bufferSize = ctx->header->sectorsPerCluster * ctx->header->bytesPerSector;
+    void *buffer = malloc(bufferSize);
+    uint32_t clusterIndex = entry.firstClusterLowWord | (entry.firstClusterHighWord << 16);
+    uint32_t remainSize = entry.fileSize;
+    uint32_t writeSize = bufferSize;
+
+    do {
+        size_t read = fat_read_cluster(ctx, clusterIndex, buffer, bufferSize);
+        if (read != bufferSize) {
+            printf("Failed to read cluster (%d != %d)\n", (uint32_t)read, (uint32_t)bufferSize);
+            free(buffer);
+            fclose(f);
+            goto error;
+        }
+
+        if(remainSize < writeSize)
+            writeSize = remainSize;
+
+        size_t written = fwrite(buffer, 1, writeSize, f);
+        if (written != writeSize) {
+            printf("Failed to write to file (%d != %d)\n", (uint32_t)written, (uint32_t)writeSize);
+            free(buffer);
+            fclose(f);
+            goto error;
+        }
+        remainSize-= writeSize;
+
+        clusterIndex = fat_next_cluster(ctx, clusterIndex);
+    } while (!fat_is_eoc(ctx, clusterIndex));
+
+
+    fclose(f);
+
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 0;
+    
+    error:
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 1;
+}
+
+/**
  * Main entry for program
  *
  * @param[in]  argc  The argc
@@ -240,6 +331,9 @@ int main(int argc, char** argv){
 
     if (strcmp(argv[1], "list") == 0)
          return main_list(argc - 2, argv + 2);
+
+    if (strcmp(argv[1], "load") == 0)
+         return main_load(argc - 2, argv + 2);
 
     printf("Unknown command '%s'\n", argv[1]);
     return print_help(1);

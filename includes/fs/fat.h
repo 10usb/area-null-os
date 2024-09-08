@@ -166,13 +166,33 @@ int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *de
 #define FAT32_EOC 0x0FFFFFF8
 
 /**
- * To het the next cluster of a given cluster
+ * To get the next cluster of a given cluster
  * 
  * @param ctx   The context
  * @param index The cluster index to get the next entry of
  * @return The value of the next cluster or a EOC mark
  */
 uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index);
+
+/**
+ * To test if a cluster index value it an end of cluster mark
+ * 
+ * @param ctx   The context
+ * @param index The cluster index value to test
+ * @return 1 if the cluster index is a EOC mark
+ */
+int fat_is_eoc(struct FATContext *ctx, uint32_t index);
+
+/**
+ * Read the contents of a cluster
+ * 
+ * @param ctx   The context
+ * @param index The cluster index
+ * @param dst   The the buffer to copy the contents to
+ * @param size  Number of bytes to read into the dst buffer
+ * @return The number of bytes read
+ */
+size_t fat_read_cluster(struct FATContext *ctx, uint32_t index, void *dst, size_t size);
 
 /**
  * When it find the file it will return it entry, when it has a long name and size would
