@@ -15,4 +15,6 @@ obj:
 clean:
 	$(RM) $(TARGET) $(OBJECTS) obj
 
-.PHONY: clean
+clean-all: clean
+
+.PHONY: clean clean-all

@@ -1,23 +1,20 @@
 #include <fs/fat.h>
 #include <memory.h>
 
-// To make sure our code is memory safe
-typedef char p__LINE__[ (sizeof(struct FATContext) >= 11) ? 1 : -1];
-
-int fat_init_context(struct FATContext *ctx, size_t size, struct BlockDevice *device) {
+int fat_init_context(struct FATContext *ctx, size_t size, const struct BlockDevice *device) {
     // Minumum size required to function
     if(size < sizeof(struct FATContext) + device->blockSize * 2)
         return FAT_ERR_MINIMUM_SIZE;
 
-    // As the header of the FAT starts at 11 bytes in, will have the pointer
-    // start at 11 bytes before the end of our context, so the header perfectly
+    // As the header of the FAT starts at 3 bytes in, will have the pointer
+    // start at 3 bytes before the end of our context, so the header perfectly
     // aligns to the end of it.
-    void *ptr = ((void*)ctx) + sizeof(struct FATContext) - 11;
+    void *ptr = ((void*)ctx) + sizeof(struct FATContext) - 3;
     if (device->read(device, 0, 1, ptr) != 1)
         return FAT_ERR_FAILED_READ;
 
     // Now have a local pointer to it
-    register struct FATBPB *bpb = ptr + 11;
+    register struct FATBPB *bpb = ptr + 3;
 
     // Now we know the bytes of the context won't be overwritten we can set it
     // properties

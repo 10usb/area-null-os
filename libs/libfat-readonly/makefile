@@ -1,5 +1,5 @@
 include ../../env$(ENV).mk
-SOURCES=fat.c
+SOURCES=readonly.c
 OBJECTS=$(SOURCES:%.c=obj/$(ENVDIR)/%.o)
 TARGET=libfat-readonly$(ENV).o
 
@@ -15,4 +15,6 @@ obj/$(ENVDIR):
 clean:
 	$(RM) $(TARGET) $(OBJECTS) obj
 
-.PHONY: clean
+clean-all: clean
+
+.PHONY: clean clean-all

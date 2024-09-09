@@ -16,15 +16,15 @@ static int print_help(int value) {
     printf(" fat help\n");
     printf(" fat info <file>\n");
     printf(" fat create <file> <sectors> [options]\n");
-    printf("  -sN    Number of bytes per sector\n");
-    printf("  -TN    Number of sectors per track\n");
-    printf("  -HN    Number of heads\n");
-    printf("  -rN    Number of sectors for the reservedsectors (min 1)\n");
-    printf("  -FN    Number of FAT copies\n");
-    printf("  -fN    Number of sectors per FAT\n");
-    printf("  -eN    Maximum number of root entries\n");
-    printf("  -hN    Number of hidden sectors preceding the filesystem\n");
-    printf("  -cN    Number of sectors per cluster\n");
+    printf("  -s N    Number of bytes per sector\n");
+    printf("  -T N    Number of sectors per track\n");
+    printf("  -H N    Number of heads\n");
+    printf("  -r N    Number of sectors for the reservedsectors (min 1)\n");
+    printf("  -F N    Number of FAT copies\n");
+    printf("  -f N    Number of sectors per FAT\n");
+    printf("  -e N    Maximum number of root entries\n");
+    printf("  -h N    Number of hidden sectors preceding the filesystem\n");
+    printf("  -c N    Number of sectors per cluster\n");
     printf(" fat list <file> [path]\n");
     printf(" fat load <file> <path> <destination>\n");
     printf(" fat store <file> <path> <source>\n");
@@ -37,10 +37,10 @@ static int print_help(int value) {
  */
 static void print_info(struct FATContext *ctx) {
 	printf("--- Disk Info --- (ambiguous)\n");
-	printf("Bytes per sector              %5d\n", ctx->header->bytesPerSector);
-	printf("Sectors per track             %5d\n", ctx->header->sectorsPerTrack);
-	printf("Number of heads               %5d\n", ctx->header->numberOfHeads);
-    printf("Media descriptor              %5X\n", ctx->header->mediaDescriptor);
+	printf("Bytes per sector           %8d\n", ctx->header->bytesPerSector);
+	printf("Sectors per track          %8d\n", ctx->header->sectorsPerTrack);
+	printf("Number of heads            %8d\n", ctx->header->numberOfHeads);
+    printf("Media descriptor           %8X\n", ctx->header->mediaDescriptor);
     printf("\n");
 
 	printf("--- Partition Info ---\n");
@@ -49,35 +49,36 @@ static void print_info(struct FATContext *ctx) {
     printf("\n");
 
     printf("--- Header ---\n");
-	printf("Reserved sectors              %5d\n", ctx->header->reservedSectors);
-    printf("Sectors per FAT               %5d\n", ctx->header->sectorsPerFat);
-    printf("Fat copies                    %5d\n", ctx->header->numberOfFatCopies);
-    printf("Sectors per cluster           %5d\n", ctx->header->sectorsPerCluster);
-	printf("Root entries                  %5d\n", ctx->header->numberOfRootEntries);
+    printf("OEM Name                 \"%8.8s\"\n", ctx->header->oemName);
+	printf("Reserved sectors           %8d\n", ctx->header->reservedSectors);
+    printf("Sectors per FAT            %8d\n", ctx->header->sectorsPerFat);
+    printf("Fat copies                 %8d\n", ctx->header->numberOfFatCopies);
+    printf("Sectors per cluster        %8d\n", ctx->header->sectorsPerCluster);
+	printf("Root entries               %8d\n", ctx->header->numberOfRootEntries);
 	printf("\n");
 
 	if(ctx->extended){
 		printf("--- Extended Header (32bit) ---\n");
-		printf("Sectors per FAT               %5d\n", ctx->extended->sectorsPerFat);
-		printf("Flags                         %5d\n", ctx->extended->flags);
-		printf("Version                       %d.%d\n", ctx->extended->major, ctx->extended->minor);
-		printf("Root cluster                  %5d\n", ctx->extended->rootCluster);
-		printf("fileSystemInfoSector          %5d\n", ctx->extended->fileSystemInfoSector);
-		printf("Backup BootSector             %5d\n", ctx->extended->backupBootSector);
+		printf("Sectors per FAT             %8d\n", ctx->extended->sectorsPerFat);
+		printf("Flags                       %8d\n", ctx->extended->flags);
+		printf("Version                     %d.%d\n", ctx->extended->major, ctx->extended->minor);
+		printf("Root cluster                %8d\n", ctx->extended->rootCluster);
+		printf("fileSystemInfoSector        %8d\n", ctx->extended->fileSystemInfoSector);
+		printf("Backup BootSector           %8d\n", ctx->extended->backupBootSector);
 		printf("\n");
 	}
 
 	printf("--- Boot Sector ---\n");
-	printf("Drive number (ambiguous)      %5d\n", ctx->bootSector->driveNumber);
-	printf("Extended boot signature       %5d\n", ctx->bootSector->extendedBootSignature);
+	printf("Drive number (ambiguous)   %8d\n", ctx->bootSector->driveNumber);
+	printf("Extended boot signature    %8d\n", ctx->bootSector->extendedBootSignature);
 	printf("\n");
 
     
     printf("--- Signature ---\n");
     if(ctx->signature) {
-        printf("Volume serial                 %5d\n", ctx->signature->volumeSerialNumber);
-        printf("Volume Label                  \"%.11s\"\n", ctx->signature->volumeLabel);
-        printf("FileSystem type               \"%.8s\"\n", ctx->signature->fileSystemType);
+        printf("Volume serial              %8d\n", ctx->signature->volumeSerialNumber);
+        printf("Volume Label                  \"%11.11s\"\n", ctx->signature->volumeLabel);
+        printf("FileSystem type               \"%8.8s\"\n", ctx->signature->fileSystemType);
     }else{
         printf("Not present\n");
     }
@@ -88,6 +89,140 @@ static void print_info(struct FATContext *ctx) {
     printf("First data sector          %8d\n", ctx->startOfData);
     printf("Number of clusters         %8d\n", ctx->numberOfClusters);
     printf("Buffer size                %8ld\n", ctx->bufferSize);
+}
+
+/**
+ * Show info about the image
+ * 
+ * @param[in]  argc  The argc
+ * @param      argv  The argv
+ *
+ * @return     program exit code
+ */
+static inline int main_create(int argc, char** argv) {
+    if (argc < 2) {
+        printf("Not enough arguments\n");
+        return print_help(1);
+    }
+    
+    struct FATCreateParams parameters;
+    memset(&parameters, 0, sizeof(struct FATHeader));
+
+    const char *file = argv[0];
+
+    uint32_t i;
+
+    if (!sscanf(argv[1], "%i", &i)) {
+        printf("Failed to parse <sectors>\n");
+        return print_help(1);
+    }
+    parameters.numberOfSectors = i;
+
+    for(int index = 2; index < argc; index++){
+        if(argv[index][0] != '-') {
+            printf("Unknown argument '%s'\n", argv[index]);
+            return print_help(1);
+        }
+
+        switch (argv[index][1]) {
+            case 's':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <bytesPerSector>\n");
+                    return print_help(1);
+                }
+                parameters.bytesPerSector = i;
+            break;
+            case 'T':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <sectorsPerTrack>\n");
+                    return print_help(1);
+                }
+                parameters.sectorsPerTrack = i;
+            break;
+            case 'H':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <numberOfHeads>\n");
+                    return print_help(1);
+                }
+                parameters.numberOfHeads = i;
+            break;
+            case 'r':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <reservedSectors>\n");
+                    return print_help(1);
+                }
+                parameters.reservedSectors = i;
+            break;
+            case 'F':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <numberOfFatCopies>\n");
+                    return print_help(1);
+                }
+                parameters.numberOfFatCopies = i;
+            break;
+            case 'f':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <sectorsPerFat>\n");
+                    return print_help(1);
+                }
+                parameters.sectorsPerFat = i;
+            break;
+            case 'e':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <numberOfRootEntries>\n");
+                    return print_help(1);
+                }
+                parameters.numberOfRootEntries = i;
+            break;
+            case 'h':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <hiddenSectors>\n");
+                    return print_help(1);
+                }
+                parameters.hiddenSectors = i;
+            break;
+            case 'c':
+                index++;
+                if (!sscanf(argv[index], "%d", &i)) {
+                    printf("Failed to parse <sectorsPerCluster>\n");
+                    return print_help(1);
+                }
+                parameters.sectorsPerCluster = i;
+            break;
+            default:
+                printf("Unknown argument '%s'\n", argv[index]);
+                return print_help(1);
+        }
+    }
+
+    struct BlockDevice *device = malloc(posix_stream_device_size());
+    if(!posix_create_stream_device(device, argv[0], 512, parameters.numberOfSectors)){
+        printf("Failed to open file command '%s'\n", argv[0]);
+        free(device);
+        return 1;
+    }
+
+    struct FATContext *ctx =  malloc(0x100000);
+    int resultCode;
+    if((resultCode = fat_create(ctx, 0x100000, device, &parameters)) != FAT_SUCCESS){
+        printf("Failed to create filesystem %d\n", resultCode);
+        device->action(device, BLOCK_DEVICE_CLOSE);
+        free(device);
+        free(ctx);
+        return 1;
+    }
+
+    print_info(ctx);
+
+    return 0;
 }
 
 /**
@@ -112,8 +247,9 @@ static inline int main_info(int argc, char** argv) {
     }
 
     struct FATContext *ctx =  malloc(0x100000);
-    if(fat_init_context(ctx, 0x100000, device) != FAT_SUCCESS){
-        printf("Failed to load filesystem\n");
+    int resultCode;
+    if((resultCode = fat_init_context(ctx, 0x100000, device)) != FAT_SUCCESS){
+        printf("Failed to load filesystem %d\n", resultCode);
         device->action(device, BLOCK_DEVICE_CLOSE);
         free(device);
         free(ctx);
@@ -325,6 +461,9 @@ int main(int argc, char** argv){
 
     if (strcmp(argv[1], "help") == 0)
          return print_help(0);
+
+    if (strcmp(argv[1], "create") == 0)
+         return main_create(argc - 2, argv + 2);
 
     if (strcmp(argv[1], "info") == 0)
          return main_info(argc - 2, argv + 2);

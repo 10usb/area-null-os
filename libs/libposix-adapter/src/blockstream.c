@@ -1,5 +1,7 @@
 #include <driver/posix.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 struct StreamBlockDevice {
 	struct BlockDevice device;
@@ -9,8 +11,8 @@ struct StreamBlockDevice {
 /**
  * Peform close or flush
  */
-static int posix_stream_device_action(struct BlockDevice *device, bdaction_t action){
-	struct StreamBlockDevice *sbd = (void*)device;
+static int posix_stream_device_action(const struct BlockDevice *device, bdaction_t action){
+	struct StreamBlockDevice *sbd = (void*)device;;
 
 	if(sbd->handle == 0)
 		return 0;
@@ -31,7 +33,7 @@ static int posix_stream_device_action(struct BlockDevice *device, bdaction_t act
 /**
  * Read the given sectors
  */
-static uint32_t posix_stream_device_read(struct BlockDevice *device, uint32_t index, uint32_t count, void *address) {
+static uint32_t posix_stream_device_read(const struct BlockDevice *device, uint32_t index, uint32_t count, void *address) {
     struct StreamBlockDevice *sbd = (void*)device;
 
 	if(sbd->handle == 0)
@@ -46,7 +48,7 @@ static uint32_t posix_stream_device_read(struct BlockDevice *device, uint32_t in
 /**
  * Write the given sectors
  */
-static uint32_t posix_stream_device_write(struct BlockDevice *device, uint32_t index, uint32_t count, const void *address) {
+static uint32_t posix_stream_device_write(const struct BlockDevice *device, uint32_t index, uint32_t count, const void *address) {
 	struct StreamBlockDevice *sbd = (void*)device;
 
 	if(sbd->handle == 0)
@@ -82,4 +84,26 @@ int posix_get_stream_device(struct BlockDevice *device, const char* filename, un
 	wrapper->handle				= handle;
 
 	return 1;
+}
+
+int posix_create_stream_device(struct BlockDevice *device, const char* filename, uint16_t blocksize, uint32_t count){
+	FILE* handle = fopen(filename, "w+b");
+	if(!handle)
+		return 0;
+
+	void *emptySector = malloc(blocksize);
+	memset(emptySector, 0, blocksize);
+
+	for (uint32_t index = 0; index < count; index++) {
+		if (fwrite(emptySector, 1, blocksize, handle) != blocksize) {
+			free(emptySector);
+			fclose(handle);
+			return 0;
+		}
+	}
+
+	free(emptySector);
+	fclose(handle);
+
+	return posix_get_stream_device(device, filename, blocksize);
 }

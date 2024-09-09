@@ -2,7 +2,7 @@ include ../../env.posix.mk
 SOURCES=main.c
 OBJECTS=$(SOURCES:%.c=obj/c/%.o)
 # Shared dependancies
-DEPENDANCIES=libfat-readonly
+DEPENDANCIES=libfat
 LIBS=$(foreach x, $(DEPENDANCIES), $(ROOT)libs/$(x)/$(x).posix.o)
 # Local dependancies
 POSIX_DEPENDANCIES=libposix-adapter
@@ -34,7 +34,7 @@ clean:
 	$(RM) $(TARGET) $(OBJECTS) obj
 
 clean-all: clean
-	@$(foreach x,$(LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean)
-	@$(foreach x,$(POSIX_LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean)
+	@$(foreach x,$(LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean-all)
+	@$(foreach x,$(POSIX_LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean-all)
 
-.PHONY: build clean clean-all deps
+.PHONY: build deps clean clean-all
