@@ -57,7 +57,7 @@ static void print_info(struct FATContext *ctx) {
 	printf("Root entries               %8d\n", ctx->header->numberOfRootEntries);
 	printf("\n");
 
-	if(ctx->extended){
+	if (ctx->extended) {
 		printf("--- Extended Header (32bit) ---\n");
 		printf("Sectors per FAT             %8d\n", ctx->extended->sectorsPerFat);
 		printf("Flags                       %8d\n", ctx->extended->flags);
@@ -75,11 +75,11 @@ static void print_info(struct FATContext *ctx) {
 
     
     printf("--- Signature ---\n");
-    if(ctx->signature) {
+    if (ctx->signature) {
         printf("Volume serial              %8d\n", ctx->signature->volumeSerialNumber);
-        printf("Volume Label                  \"%11.11s\"\n", ctx->signature->volumeLabel);
-        printf("FileSystem type               \"%8.8s\"\n", ctx->signature->fileSystemType);
-    }else{
+        printf("Volume Label          \"%11.11s\"\n", ctx->signature->volumeLabel);
+        printf("FileSystem type          \"%8.8s\"\n", ctx->signature->fileSystemType);
+    } else {
         printf("Not present\n");
     }
     printf("\n");
@@ -107,10 +107,9 @@ static inline int main_create(int argc, char** argv) {
     
     struct FATCreateParams parameters;
     memset(&parameters, 0, sizeof(struct FATHeader));
-
-    const char *file = argv[0];
-
+    uint16_t blockSize = 512;
     uint32_t i;
+    uint8_t s[12];
 
     if (!sscanf(argv[1], "%i", &i)) {
         printf("Failed to parse <sectors>\n");
@@ -127,15 +126,16 @@ static inline int main_create(int argc, char** argv) {
         switch (argv[index][1]) {
             case 's':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <bytesPerSector>\n");
                     return print_help(1);
                 }
                 parameters.bytesPerSector = i;
+                blockSize = i;
             break;
             case 'T':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <sectorsPerTrack>\n");
                     return print_help(1);
                 }
@@ -143,7 +143,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'H':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <numberOfHeads>\n");
                     return print_help(1);
                 }
@@ -151,7 +151,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'r':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <reservedSectors>\n");
                     return print_help(1);
                 }
@@ -159,7 +159,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'F':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <numberOfFatCopies>\n");
                     return print_help(1);
                 }
@@ -167,7 +167,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'f':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <sectorsPerFat>\n");
                     return print_help(1);
                 }
@@ -175,7 +175,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'e':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <numberOfRootEntries>\n");
                     return print_help(1);
                 }
@@ -183,7 +183,7 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'h':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <hiddenSectors>\n");
                     return print_help(1);
                 }
@@ -191,11 +191,23 @@ static inline int main_create(int argc, char** argv) {
             break;
             case 'c':
                 index++;
-                if (!sscanf(argv[index], "%d", &i)) {
+                if (!sscanf(argv[index], "%i", &i)) {
                     printf("Failed to parse <sectorsPerCluster>\n");
                     return print_help(1);
                 }
                 parameters.sectorsPerCluster = i;
+            break;
+            case 'S':
+                index++;
+                if (!sscanf(argv[index], "%i", &i)) {
+                    printf("Failed to parse <sectorsPerCluster>\n");
+                    return print_help(1);
+                }
+                parameters.volumeSerialNumber = i;
+            break;
+            case 'L':
+                index++;
+                strncpy(parameters.volumeLabel, argv[index], 11);
             break;
             default:
                 printf("Unknown argument '%s'\n", argv[index]);
@@ -204,7 +216,7 @@ static inline int main_create(int argc, char** argv) {
     }
 
     struct BlockDevice *device = malloc(posix_stream_device_size());
-    if(!posix_create_stream_device(device, argv[0], 512, parameters.numberOfSectors)){
+    if(!posix_create_stream_device(device, argv[0], blockSize, parameters.numberOfSectors)){
         printf("Failed to open file command '%s'\n", argv[0]);
         free(device);
         return 1;

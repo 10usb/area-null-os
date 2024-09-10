@@ -120,6 +120,8 @@ uint32_t fat_next_cluster(struct FATContext *ctx, uint32_t index) {
     switch (ctx->type) {
         case FAT12:
             uint16_t *ptr = ctx->fat + (index + index / 2);
+            if(index & 1)
+                return *ptr >> 4;
             return *ptr & 0xFFF;
         case FAT16:
             return ((uint16_t*)ctx->fat)[index];
