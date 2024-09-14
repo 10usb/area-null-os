@@ -4,11 +4,12 @@
 #include <fs/fat/structure.h>
 
 #define FAT_SUCCESS		             0
-#define FAT_ERR_MINIMUM_SIZE		-1
-#define FAT_ERR_INVALID_FAT32 		-2
-#define FAT_ERR_INVALID_FAT12_OR_16	-3
-#define FAT_ERR_FAILED_READ	        -4
-#define FAT_ERR_FAILED_READ_FAT     -5
+#define FAT_ERROR		            -1
+#define FAT_ERR_MINIMUM_SIZE		-2
+#define FAT_ERR_INVALID_FAT32 		-3
+#define FAT_ERR_INVALID_FAT12_OR_16	-4
+#define FAT_ERR_FAILED_READ	        -5
+#define FAT_ERR_FAILED_READ_FAT     -6
 
 /**
  * Reads the headers from the device and prepares the context for use.

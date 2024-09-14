@@ -442,8 +442,90 @@ static inline int main_load(int argc, char** argv) {
         clusterIndex = fat_next_cluster(ctx, clusterIndex);
     } while (!fat_is_eoc(ctx, clusterIndex));
 
-
     fclose(f);
+
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 0;
+    
+    error:
+    device->action(device, BLOCK_DEVICE_CLOSE);
+    free(device);
+    free(ctx);
+    return 1;
+}
+
+
+/**
+ * Show info about the image
+ * 
+ * @param[in]  argc  The argc
+ * @param      argv  The argv
+ *
+ * @return     program exit code
+ */
+static inline int main_store(int argc, char** argv) {
+    if(argc < 3){
+        printf("Not enough arguments\n");
+        return print_help(1);
+    }
+
+    struct BlockDevice *device = malloc(posix_stream_device_size());
+    if(!posix_get_stream_device(device, argv[0], 512)){
+        printf("Failed to open file command '%s'\n", argv[0]);
+        free(device);
+        return 1;
+    }
+
+    struct FATContext *ctx =  malloc(0x100000);
+    if(fat_init_context(ctx, 0x100000, device) != FAT_SUCCESS){
+        printf("Failed to load filesystem\n");
+        goto error;
+    }
+
+    FILE *f = fopen(argv[2], "rb");
+    if (!f) {
+        printf("Failed to open file\n");
+        goto error;
+    }
+
+    if (fseek(f, 0, SEEK_END) != 0) {
+        printf("Failed to seek to end\n");
+        fclose(f);
+        goto error;
+    }
+
+    size_t size = ftell(f);
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        printf("Failed to seek to begining\n");
+        fclose(f);
+        goto error;
+    }
+
+    void *buffer = malloc(size);
+
+    if (fread(buffer, 1, size, f) != size) {
+        printf("Failed to read contens\n");
+        free(buffer);
+        fclose(f);
+        goto error;
+    }
+    fclose(f);
+
+    printf("Load file with size of %d\n", (int)size);
+
+    uint32_t startIndex, endIndex;
+    if (sscanf(argv[1], "%i:%i", &startIndex, &endIndex)) {
+        printf("setting reseved @ %d:%d\n", startIndex, endIndex);
+
+        if(fat_set_reserved(ctx, startIndex, endIndex, buffer, size) != FAT_SUCCESS){
+            printf("Failed to set reserved sectors\n");
+            goto error;
+        }
+    } else {
+        printf("Not supported yet\n");
+    }
 
     device->action(device, BLOCK_DEVICE_CLOSE);
     free(device);
@@ -485,6 +567,9 @@ int main(int argc, char** argv){
 
     if (strcmp(argv[1], "load") == 0)
          return main_load(argc - 2, argv + 2);
+
+    if (strcmp(argv[1], "store") == 0)
+         return main_store(argc - 2, argv + 2);
 
     printf("Unknown command '%s'\n", argv[1]);
     return print_help(1);

@@ -34,4 +34,15 @@ struct FATCreateParams {
  */
 int fat_create(struct FATContext *ctx, size_t size, const struct BlockDevice *device, struct FATCreateParams *parameters);
 
+/**
+ * Set the reserved sectors with the new content
+ * 
+ * @param ctx           The context
+ * @param startIndex    The first sector
+ * @param endIndex      The last sector
+ * @param source        Byte containing the content
+ * @param size          Size of the source in bytes
+ */
+int fat_set_reserved(struct FATContext *ctx, uint32_t startIndex, uint32_t endIndex, const void *source, size_t size);
+
 #endif

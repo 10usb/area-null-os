@@ -137,14 +137,14 @@ void floppy_index_to_chs(uint32_t index, struct CHS *chs) {
 /**
  * We are required to implement this
  */
-static int floppy_action(struct BlockDevice*, bdaction_t action){
+static int floppy_action(const struct BlockDevice*, bdaction_t action){
     return 0;
 }
 
 /**
  * Read the given sectors
  */
-static uint32_t floppy_read(struct BlockDevice *device, uint32_t index, uint32_t count, void *address) {
+static uint32_t floppy_read(const struct BlockDevice *device, uint32_t index, uint32_t count, void *address) {
     struct FloppyDevice *fd = (void*)device;
 
     struct CHS chs;
@@ -192,7 +192,7 @@ static uint32_t floppy_read(struct BlockDevice *device, uint32_t index, uint32_t
 /**
  * Write the given sectors
  */
-static uint32_t floppy_write(struct BlockDevice*, uint32_t index, uint32_t count, const void *address) {
+static uint32_t floppy_write(const struct BlockDevice*, uint32_t index, uint32_t count, const void *address) {
     return 0;
 }
 

@@ -180,7 +180,7 @@ int fat_create(struct FATContext *ctx, size_t size, const struct BlockDevice *de
         }
     } else {
         // NOT YET SUPPORTED
-        return FAT_ERR_MINIMUM_SIZE;
+        return FAT_ERROR;
     }
 
     // Write it back to the device
@@ -192,7 +192,7 @@ int fat_create(struct FATContext *ctx, size_t size, const struct BlockDevice *de
         return resultCode;
 
     if (ctx->fat == 0)
-        return FAT_ERR_MINIMUM_SIZE;
+        return FAT_ERROR;
 
     // The upper bit/bytes need to be the same as an EOC mark. We
     // can safely use the FAT32_EOC because trimmed down to 16 or
@@ -203,5 +203,35 @@ int fat_create(struct FATContext *ctx, size_t size, const struct BlockDevice *de
     device->write(device, ctx->header->reservedSectors, 1, ctx->fat);
     device->write(device, ctx->header->reservedSectors + ctx->header->sectorsPerFat, 1, ctx->fat);
 
+    return FAT_SUCCESS;
+}
+
+int fat_set_reserved(struct FATContext *ctx, uint32_t startIndex, uint32_t endIndex, const void *source, size_t size) {
+    if(endIndex < startIndex)
+        return FAT_ERROR;
+
+    if(endIndex >= ctx->header->reservedSectors)
+        return FAT_ERROR;
+
+    uint32_t sectorSize = endIndex - startIndex + 1;
+
+    size_t bytedNeeded = sectorSize * ctx->header->bytesPerSector;
+
+    if (size > bytedNeeded)
+        return FAT_ERROR;
+
+    if(bytedNeeded > ctx->bufferSize)
+        return FAT_ERROR;
+
+    printf("Sectors available %d\n", sectorSize);
+    printf("Sectors needed %d\n", (int)((size + ctx->header->bytesPerSector - 1) / ctx->header->bytesPerSector));
+
+    memory_set(ctx->buffer, 0, bytedNeeded);
+    memory_copy(ctx->buffer, source, size);
+    if(startIndex == 0)
+        memory_copy(ctx->buffer + 3, ctx->header, sizeof(struct FATBPB));
+
+    ctx->device->write(ctx->device, startIndex, sectorSize, ctx->buffer);
+    
     return FAT_SUCCESS;
 }

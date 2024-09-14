@@ -1,42 +1,33 @@
 include env.mk
-TARGET=floppy.img
+FLOPPY=floppy.img
 BOOT=boot/fatboot.bin
 LOADER=loader/loader.bin
+FAT=tools/fat/fat$(SUFFIX)
 
-NumberOfHeads=2
-TrackPerHead=80
-SectorsPerTrack=18
-BytesPerSector=512
+build: deps $(FLOPPY)
 
-ReservedSectors=20
+$(FLOPPY): $(BOOT) $(LOADER) $(FAT) $(FLOPPY).info
+	$(FAT) store $(FLOPPY) 0:0 $(BOOT)
+	$(FAT) store $(FLOPPY) 1:19 $(LOADER)
 
-IMAGE_SIZE=$(shell echo $$(($(NumberOfHeads) * $(SectorsPerTrack) * $(TrackPerHead) * $(BytesPerSector))))
-
-build: deps $(TARGET)
-
-$(TARGET): $(BOOT) $(LOADER) 
-	truncate -s $(IMAGE_SIZE) $(TARGET)
-	dd if=$(BOOT) of=$(TARGET) bs=512 count=1 conv=notrunc 
-	printf %02x $(ReservedSectors) | xxd -r -p | dd of=$(TARGET) bs=1 seek=14 count=1 conv=notrunc status=none
-	printf %02x $(SectorsPerTrack) | xxd -r -p | dd of=$(TARGET) bs=1 seek=24 count=1 conv=notrunc status=none
-	printf %02x $(NumberOfHeads) | xxd -r -p | dd of=$(TARGET) bs=1 seek=26 count=1 conv=notrunc status=none
-	dd if=$(LOADER) of=$(TARGET) bs=512 seek=1 count=19 conv=notrunc 
+$(FLOPPY).info: $(FAT)
+	$(FAT) create $(FLOPPY) 2880 -T 18 -H 2 -r 20 > $(FLOPPY).info
 
 deps:
 	@$(MAKE) --no-print-directory -C boot
 	@$(MAKE) --no-print-directory -C loader
 
+$(FAT):
+	@$(MAKE) --no-print-directory -C tools/fat
+
 clean:
-	$(RM) $(TARGET)
+	$(RM) $(FLOPPY)
 	@$(MAKE) --no-print-directory -C boot clean
 	@$(MAKE) --no-print-directory -C loader clean
 
-rebuild: clean $(TARGET)
+rebuild: clean $(FLOPPY)
 
-run: deps $(TARGET)
-	$(QEMU) -drive format=raw,file="$(TARGET)",index=0,if=floppy, -m 128M &
+run: deps $(FLOPPY)
+	$(QEMU) -drive format=raw,file="$(FLOPPY)",index=0,if=floppy, -m 128M &
 
-test:
-	echo $(IMAGE_SIZE)
-
-.PHONY: build deps clean rebuild run test
+.PHONY: build deps clean rebuild run test x y
