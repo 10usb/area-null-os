@@ -45,6 +45,18 @@ enum FloppyCommand {
    CMD_SCAN_HIGH_OR_EQUAL   = 29
 };
 
+enum SectorSize {
+    SECTOR_SIZE_128 = 0,
+    SECTOR_SIZE_256 = 1,
+    SECTOR_SIZE_512 = 2,
+    SECTOR_SIZE_1K  = 3,
+    SECTOR_SIZE_2K  = 4,
+    SECTOR_SIZE_4K  = 5,
+    SECTOR_SIZE_8K  = 6,
+    SECTOR_SIZE_16K = 7,
+};
+
+
 #define DOR_RESET   0x04
 #define DOR_DMA     0x08
 #define DOR_MOTER_A 0x10
@@ -63,6 +75,10 @@ enum FloppyCommand {
 
 #define IRQ_FLOPPY 6
 #define FLPY_SECTORS_PER_TRACK 18
+
+#define MULTI_TRACK 128
+#define DOUBLE_DENSITY 64
+#define SKIP_DELETED 32
 
 struct CHS {
     uint16_t track;
