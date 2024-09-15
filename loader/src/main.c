@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "rtc.h"
 #include <driver/floppy.h>
+#include <fs/fat/readonly.h>
 
 
 static char buffer[50];
@@ -12,7 +13,7 @@ void myhandler(isr_frame_t *frame) {
     tty_color_t current = tty_getcolor();
 
     tty_setcolors(TTY_YELLOW, TTY_BLACK);
-    tty_puts("Hello world, from my myhandler\n");
+    tty_puts("Hello world, from myhandler\n");
     
     tty_setcolor(current);
 }
@@ -69,21 +70,46 @@ void main(){
 
     floppy_init();
 
-    struct BlockDevice *fd = (void*)0x100000;
+    struct BlockDevice *device = (void*)0x100000;
     
-    if(!floppy_get_device(0, fd)) {
+    if(!floppy_get_device(0, device)) {
         tty_puts("Failed to load floppy drive");
     }
 
-    uint8_t *address = (void*)(0x100000 + 100);
-    address[510] = 0x33;
-    address[511] = 0x44;
-    snprintf(buffer, 30, "%02x %02x\n", address[510], address[511]);
+    struct FATContext *ctx =  (void*)0x200000;
+    int resultCode;
+    if((resultCode = fat_init_context(ctx, 0x100000, device)) != FAT_SUCCESS){
+        snprintf(buffer, 30, "resultCode: %d\n", resultCode);
+        tty_puts(buffer);
+        return;
+    }
+
+    snprintf(buffer, 50, "Bytes per sector           %8d\n", ctx->header->bytesPerSector);tty_puts(buffer);
+    snprintf(buffer, 50, "Sectors per track          %8d\n", ctx->header->sectorsPerTrack);tty_puts(buffer);
+    snprintf(buffer, 50, "Number of heads            %8d\n", ctx->header->numberOfHeads);tty_puts(buffer);
+    snprintf(buffer, 50, "Media descriptor           %8x\n", ctx->header->mediaDescriptor);tty_puts(buffer);
+    snprintf(buffer, 50, "First sector               %8d\n", ctx->header->hiddenSectors);tty_puts(buffer);
+    snprintf(buffer, 50, "Number of sectors          %8d\n", ctx->header->smallNumberOfSectors ? ctx->header->smallNumberOfSectors : ctx->header->largeNumberOfSectors);tty_puts(buffer);
+    snprintf(buffer, 50, "Reserved sectors           %8d\n", ctx->header->reservedSectors);tty_puts(buffer);
+    snprintf(buffer, 50, "Sectors per FAT            %8d\n", ctx->header->sectorsPerFat);tty_puts(buffer);
+    snprintf(buffer, 50, "Fat copies                 %8d\n", ctx->header->numberOfFatCopies);tty_puts(buffer);
+    snprintf(buffer, 50, "Sectors per cluster        %8d\n", ctx->header->sectorsPerCluster);tty_puts(buffer);
+    snprintf(buffer, 50, "Root entries               %8d\n", ctx->header->numberOfRootEntries);tty_puts(buffer);
+
+    uint32_t value;
+    value = fat_next_cluster(ctx, 0);
+    snprintf(buffer, 50, "FAT0: %3x\n", value);
     tty_puts(buffer);
 
-    uint32_t read = fd->read(fd, 0, 1, address);
+    value = fat_next_cluster(ctx, 1);
+    snprintf(buffer, 50, "FAT1: %3x\n", value);
+    tty_puts(buffer);
 
-    // We should see 0x55 0xAA
-    snprintf(buffer, 30, "%02x %02x\n", address[510], address[511]);
+    struct FATDirectoryEntry directory;
+    int32_t count = fat_find_file(ctx, &directory, 1, "");
+    if (count <= 0) {
+        tty_puts("Directory not found\n");
+    }
+    snprintf(buffer, 50, "Found %d entries\n", count);
     tty_puts(buffer);
 }
