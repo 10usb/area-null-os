@@ -11,6 +11,7 @@ else
 endif
 
 CC=/opt/cross/bin/i386-elf-gcc
+CFLAGS=-m32 -O -ffreestanding -nostdlib -I$(INCLUDES)
 LD=/opt/cross/bin/i386-elf-ld
 OBJCOPY=/opt/cross/bin/i386-elf-objcopy
 RM=rm -rf

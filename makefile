@@ -8,10 +8,10 @@ build: deps $(FLOPPY)
 
 $(FLOPPY): $(BOOT) $(LOADER) $(FAT) $(FLOPPY).info
 	$(FAT) store $(FLOPPY) 0:0 $(BOOT)
-	$(FAT) store $(FLOPPY) 1:19 $(LOADER)
+	$(FAT) store $(FLOPPY) 1:31 $(LOADER)
 
 $(FLOPPY).info: $(FAT)
-	$(FAT) create $(FLOPPY) 2880 -T 18 -H 2 -r 20 > $(FLOPPY).info
+	$(FAT) create $(FLOPPY) 2880 -T 18 -H 2 -r 32 > $(FLOPPY).info
 
 deps:
 	@$(MAKE) --no-print-directory -C boot

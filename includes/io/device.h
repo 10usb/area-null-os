@@ -1,8 +1,7 @@
 #ifndef IO_DEVICE_H
 #define IO_DEVICE_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include <types.h>
 
 typedef enum BlockDeviceAction {
     BLOCK_DEVICE_OPEN = 1,

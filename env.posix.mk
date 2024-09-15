@@ -11,6 +11,7 @@ else
 endif
 
 CC=gcc
+CFLAGS=-I$(INCLUDES)
 LD=ld
 OBJCOPY=objcopy
 RM=rm -rf
