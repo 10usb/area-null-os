@@ -19,3 +19,5 @@
 #endif
 
 #endif
+
+#define PACKED __attribute__((__packed__))

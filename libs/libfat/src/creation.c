@@ -2,9 +2,9 @@
 #include <memory.h>
 
 // Debugging
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
 
 static inline void fix_label(uint8_t *name, size_t size){
     size_t index = 0;
@@ -223,8 +223,8 @@ int fat_set_reserved(struct FATContext *ctx, uint32_t startIndex, uint32_t endIn
     if(bytedNeeded > ctx->bufferSize)
         return FAT_ERROR;
 
-    printf("Sectors available %d\n", sectorSize);
-    printf("Sectors needed %d\n", (int)((size + ctx->header->bytesPerSector - 1) / ctx->header->bytesPerSector));
+    //printf("Sectors available %d\n", sectorSize);
+    //printf("Sectors needed %d\n", (int)((size + ctx->header->bytesPerSector - 1) / ctx->header->bytesPerSector));
 
     memory_set(ctx->buffer, 0, bytedNeeded);
     memory_copy(ctx->buffer, source, size);

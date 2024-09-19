@@ -7,7 +7,7 @@ $(TARGET): $(OBJECTS)
 	$(LD) -i -o $@ $(OBJECTS)
 
 obj/%.o: src/%.c | obj
-	$(CC) -c -I$(INCLUDES) -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 obj:
 	$(MKDIR) $@

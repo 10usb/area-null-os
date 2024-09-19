@@ -8,6 +8,7 @@
 *.exe
 *.img
 *.img.info
+*.sys
 AreaNull.code-workspace
 
 .vscode

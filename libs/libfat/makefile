@@ -12,7 +12,7 @@ $(TARGET): $(OBJECTS) $(LIBS)
 	$(LD) -i -o $@ $(OBJECTS) $(LIBS)
 
 obj/$(ENVDIR)/%.o: src/%.c | obj/$(ENVDIR)
-	$(CC) -c -I$(INCLUDES) -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 obj/$(ENVDIR):
 	$(MKDIR) $@
