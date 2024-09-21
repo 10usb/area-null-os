@@ -11,14 +11,11 @@ enum ELFType {
     ET_CORE = 4,        // Core file
 };
 
-struct ELFDescriptor {
+struct ELFHeader {
     uint8_t	identifier[16];
     uint16_t type;
     uint16_t machine;
     uint32_t version;
-} PACKED;
-
-struct ELFInfo {
     uint32_t entryPoint;
     uint32_t programOffset;
     uint32_t sectionOffset;
@@ -75,29 +72,54 @@ enum ELFSectionType {
 };
 
 enum ELFSectionFlags {
-    SHF_WRITE       = 0,
-    SHF_ALLOC       = 1,
-    SHF_EXECINSTR   = 2,
-    SHF_MASKPROC    = 0xf0000000,
+    SHF_WRITE       = 1,
+    SHF_ALLOC       = 2,
+    SHF_EXEC        = 4,
 };
 
 struct ELFSymbolEntry {
     uint32_t name;
     uint32_t address;
     uint32_t size;
-    uint8_t info;
+    union {
+        uint8_t info;
+        struct {
+            uint8_t type : 4;
+            uint8_t bind : 4;
+        };
+    } PACKED;
     uint8_t other;
     uint16_t index;
 } PACKED;
 
 struct ELFRelocation {
     uint32_t offset;
-    uint32_t info;
+    union {
+        uint32_t info;
+        struct {
+            uint8_t type;
+            uint32_t symbol : 24;
+        } PACKED;
+    };
 } PACKED;
 
 struct ELFRelocationAddend {
     uint32_t offset;
-    uint32_t info;
+    union {
+        uint32_t info;
+        struct {
+            uint8_t type;
+            uint32_t symbol : 24;
+        } PACKED;
+    };
     uint32_t addend;
 } PACKED;
+
+struct ELFContext {
+    struct ELFHeader header;
+    struct ELFProgramHeader *programHeaders;
+    struct ELFSectionHeader *sectionHeaders;
+    void **sections;
+};
+
 #endif
