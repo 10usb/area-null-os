@@ -1,4 +1,4 @@
-#include <fs/fat.h>
+#include <fs/fat/readonly.h>
 #include <memory.h>
 
 int fat_init_context(struct FATContext *ctx, size_t size, const struct BlockDevice *device) {
@@ -273,6 +273,7 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
                             break;
                         }
                         path++;
+                    break;
                     default:
                         *ptr++ = *path++;
                 }
@@ -329,7 +330,6 @@ int32_t fat_find_file(struct FATContext *ctx, struct FATDirectoryEntry *entries,
             }
         }
     } while (fat_directory_reader_next(ctx, &reader));
-    done:
 
     // We can safely return count when we haven't found the file
     // we were looking for. The counter only gets incremented

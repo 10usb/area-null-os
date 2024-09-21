@@ -1,7 +1,7 @@
 global start
 extern main
 
-section .text
+section .text exec
    use16
    start:
       call a20line

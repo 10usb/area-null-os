@@ -33,5 +33,4 @@ SECTIONS
     {
         *(.comment)
     }
-    end = .;
 }

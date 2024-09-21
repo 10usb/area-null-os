@@ -6,10 +6,11 @@
 #include <driver/floppy.h>
 #include <fs/fat/readonly.h>
 
+#define unused __attribute__ ((unused))
 
 static char buffer[50];
 
-void myhandler(isr_frame_t *frame) {
+void myhandler(unused isr_frame_t *frame) {
     tty_color_t current = tty_getcolor();
 
     tty_setcolors(TTY_YELLOW, TTY_BLACK);
@@ -22,7 +23,7 @@ int count = 0;
 
 static char timer_buffer[30];
 
-void timer(int index, isr_frame_t *frame) {
+void timer(unused int index, unused isr_frame_t *frame) {
     if((count++ % 10) == 0){
         time_t time;
         rtc_get(&time);

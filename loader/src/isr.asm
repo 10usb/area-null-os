@@ -19,7 +19,7 @@ use32
 
 extern isr_handler
 
-section .text
+section .text exec
    isr_common:
       pusha
       cld
