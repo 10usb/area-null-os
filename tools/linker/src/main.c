@@ -24,14 +24,76 @@ static int print_help(int value) {
     return value;
 }
 
-const char *options[] = { "--entry", "--origin", "--format" };
 
-static inline int get_option(const char *arg){
-    for (int index = 0; index < 3; index++) {
-        if (strcmp(arg, options[index]) == 0)
+const char *options_string[] = {
+    "--entry",
+    "--origin",
+    "--format",
+    0 // null terminated
+};
+
+enum {
+    FORMAT_ELF = 1,
+    FORMAT_BINARY = 2,
+    FORMAT_ORC = 3,
+};
+
+const char *formats_string[] = {
+    "elf",
+    "binary",
+    "orc",
+    0 // null terminated
+};
+
+static inline int get_index(const char **list, const char *arg){
+    for (int index = 0; list[index]; index++) {
+        if (strcmp(arg, list[index]) == 0)
             return index + 1;
     }
 
+    return 0;
+}
+
+struct Options {
+    const char *entry;
+    uint32_t origin;
+    uint32_t format;
+};
+
+static inline int get_options(int *index, int argc, const char** argv, struct Options *options) {
+    memset(options, 0, sizeof(struct Options));
+    options->format = FORMAT_ELF;
+    options->origin = 0xFFFFFFFF;
+    
+    uint32_t i;
+    for (; *index < argc; (*index)++) {
+        switch (get_index(options_string, argv[*index])) {
+            case 1: options->entry = argv[++(*index)]; break;
+            case 2:
+                if (!sscanf(argv[++(*index)], "%x", &i)) {
+                    printf("Failed to parse <origin> %s\n", argv[*index]);
+                    return print_help(1);
+                }
+                options->origin = i;
+            break;
+            case 3:
+                i = get_index(formats_string, argv[++(*index)]);
+                if (i == 0) {
+                    printf("Unknown format '%s'\n", argv[*index]);
+                    return print_help(1);
+                }
+                options->format = i;
+            break;
+            default:
+                if(strcmp(argv[*index], "--") != 0)
+                    goto end;
+                
+                printf("Unknown option '%s'\n", argv[*index]);
+                return print_help(1);
+        }
+    }
+
+    end:
     return 0;
 }
 
@@ -44,14 +106,14 @@ int main_inspect(int argc, const char** argv){
         return print_help(1);
     }
 
-    struct ELFContext *context = elfopen(argv[0]);
+    struct ELFContext *context = elf_open(argv[0]);
     if (!context){
-        printf("Failed to open '%s'\n\t%s\n", argv[0], elflasterror());
+        printf("Failed to open '%s'\n\t%s\n", argv[0], elf_last_error());
         return 1;
     }
 
-    elfprint(context);
-    elfclose(context);
+    elf_print(context);
+    elf_close(context);
     return 0;
 }
 
@@ -59,8 +121,46 @@ int main_inspect(int argc, const char** argv){
  * Change properties of an object
  */
 int main_alter(int argc, const char** argv){
-    printf("Not yet implemented\n");
-    return 1;
+    struct Options options;
+    int index = 0, result;
+    const char *source, *target;
+
+    if((result = get_options(&index, argc, argv, &options)) != 0)
+        return result;
+
+    if (argc - index < 1) {
+        printf("No source given (%d,%d)\n", index, argc);
+        return print_help(1);
+    }
+
+    source = target = argv[index++];
+
+    if (argc - index > 0)
+        target = argv[index++];
+
+    printf("entry: %s\n", options.entry);
+    printf("origin: %X\n", options.origin);
+    printf("format: %d\n", options.format);
+    printf("source: %s\n", source);
+    printf("target: %s\n", target);
+
+    struct ELFContext *context = elf_open(source);
+    if (!context){
+        printf("Failed to open '%s'\n\t%s\n", source, elf_last_error());
+        return 1;
+    }
+
+    if (options.origin != 0xFFFFFFFF) {
+        elf_relocate(context, options.origin, 0x1000);
+    }
+
+    //elf_print(context);
+
+    if(!elf_save(context, target)){
+        printf("Failed to save '%s'\n\t%s\n", target, elf_last_error());
+    }
+    elf_close(context);
+    return 0;
 }
 
 /**
@@ -68,44 +168,6 @@ int main_alter(int argc, const char** argv){
  */
 int main_merge(int argc, const char** argv){
     printf("Not yet implemented\n");
-    const char *entry;
-    const char *origin;
-    const char *format;
-    const char *target;
-    const char **sources;
-    int sourcesCount;
-    
-    int index = 1;
-    for (; index < argc; index++) {
-        switch (get_option(argv[index])) {
-            case 1: entry = argv[++index]; break;
-            case 2: origin = argv[++index]; break;
-            case 3: format = argv[++index]; break;
-            default:
-                if(strcmp(argv[index], "--") != 0)
-                    goto TARGET;
-                
-                printf("Unknown option '%s'\n", argv[index]);
-                return print_help(1);
-        }
-    }
-
-    TARGET:
-    if (argc - index < 2) {
-        printf("No target or sources given\n");
-        return print_help(1);
-    }
-
-    target = argv[index++];
-    sources = argv + index;
-    sourcesCount = argc - index;
-
-    printf("Target: %s\n", target);
-    printf("---\ncount %d\n", sourcesCount);
-    for (int i = 0; i < sourcesCount; i++)
-        printf("source: %s\n", sources[i]);
-
-    readelf(sources[3]);
     return 1;
 }
 

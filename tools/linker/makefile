@@ -1,5 +1,5 @@
 include ../../env.posix.mk
-SOURCES=main.c elf.c
+SOURCES=main.c elf.c binary.c
 OBJECTS=$(SOURCES:%.c=obj/c/%.o)
 # Shared dependancies
 DEPENDANCIES=

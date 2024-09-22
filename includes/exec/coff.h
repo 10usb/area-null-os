@@ -53,9 +53,9 @@ struct COFFSection {
 } PACKED;
 
 enum COFFSectionFlags {
-    TEXT = 0x20,
-    DATA = 0x40,
-    BSS = 0x80,
+    COFF_TEXT = 0x20,
+    COFF_DATA = 0x40,
+    COFF_BSS = 0x80,
 };
 
 struct COFFRelocation {

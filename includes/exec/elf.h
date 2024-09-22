@@ -32,6 +32,12 @@ struct ELFHeader {
     } PACKED sectionHeader;
 } PACKED;
 
+enum {
+    PHF_EXEC    = 1,
+    PHF_WRITE   = 2,
+    PHF_READ    = 4,
+};
+
 struct ELFProgramHeader {
     uint32_t type;
     uint32_t offset;
@@ -56,7 +62,7 @@ struct ELFSectionHeader {
     uint32_t entrySize;
 } PACKED;
 
-enum ELFSectionType {
+enum {
     SHT_NULL        = 0,
     SHT_PROGBITS    = 1,
     SHT_SYMTAB      = 2,
@@ -71,7 +77,7 @@ enum ELFSectionType {
     SHT_DYNSYM      = 11
 };
 
-enum ELFSectionFlags {
+enum {
     SHF_WRITE       = 1,
     SHF_ALLOC       = 2,
     SHF_EXEC        = 4,
