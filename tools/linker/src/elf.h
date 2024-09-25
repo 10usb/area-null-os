@@ -51,4 +51,20 @@ int elf_save(struct ELFContext *context, const char *path);
  */
 int elf_relocate(struct ELFContext *context, uint32_t origin, uint32_t alignment);
 
+struct ELFSection {
+    uint16_t index;
+    struct ELFSectionHeader *header;
+    void *data;
+    uint32_t count;
+};
+
+int elf_get_section(struct ELFContext *context, struct ELFSection *section, int16_t index);
+
+
+void elf_finalize(struct ELFContext *context);
+
+int elf_resize_sections(struct ELFContext *context, uint16_t size);
+
+int elf_move_section(struct ELFContext *context, uint16_t from, uint16_t to);
+
 #endif

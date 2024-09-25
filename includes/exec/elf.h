@@ -83,7 +83,14 @@ enum {
     SHF_EXEC        = 4,
 };
 
-struct ELFSymbolEntry {
+enum {
+    ST_NOTYPE = 0,
+    ST_OBJECT = 1,
+    ST_FUNC = 2,
+    ST_SECTION = 3,
+    ST_FILE = 4,
+};
+struct ELFSymbol {
     uint32_t name;
     uint32_t address;
     uint32_t size;

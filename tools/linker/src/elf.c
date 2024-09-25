@@ -62,24 +62,73 @@ const char *elf_last_error(){
 /**
  * @brief 
  * @param context 
+ * @param sectionIndex 
  * @param offset 
  * @return 
  */
-const char *elf_get_section_name(struct ELFContext *context, uint32_t offset){
+const char *elf_get_string(struct ELFContext *context, uint16_t sectionIndex, uint32_t offset){
+    if (sectionIndex >= context->header.sectionHeader.count)
+        return 0;
+    
+    struct ELFSectionHeader *section = context->sectionHeaders + sectionIndex;
+    if (section->type != SHT_STRTAB)
+        return 0;
+
+    if(offset >= section->size)
+        return 0;
+    
+    return context->sections[sectionIndex] + offset;
+}
+
+/**
+ * @brief 
+ * @param context 
+ * @param offset 
+ * @return 
+ */
+const char *elf_get_section_name(struct ELFContext *context, uint16_t index){
+    if (index >= context->header.sectionHeader.count)
+        return 0;
+
+    struct ELFSectionHeader *section = context->sectionHeaders + index;
+    uint32_t offset = section->name;
+
     if (context->header.sectionHeader.stringTableIndex >= context->header.sectionHeader.count)
         return 0;
 
     if (!context->sectionHeaders)
         return 0;
 
-    uint32_t stringTableIndex = context->header.sectionHeader.stringTableIndex;
-    if (offset >= context->sectionHeaders[stringTableIndex].size)
+    return elf_get_string(context, context->header.sectionHeader.stringTableIndex, section->name);
+}
+
+
+/**
+ * @brief 
+ * @param context 
+ * @param sectionIndex 
+ * @param symbolIndex 
+ * @return 
+ */
+const char *elf_get_symbol_name(struct ELFContext *context, uint16_t sectionIndex, uint32_t symbolIndex){
+    if (sectionIndex >= context->header.sectionHeader.count)
+        return 0;
+    
+    struct ELFSectionHeader *section = context->sectionHeaders + sectionIndex;
+    if (section->type != SHT_SYMTAB)
         return 0;
 
-    if (!context->sections || !context->sections[stringTableIndex])
+    uint32_t total = section->size / section->entrySize;
+    if(symbolIndex >= total)
         return 0;
+    
+    struct ELFSymbol *symbols = context->sections[sectionIndex];
 
-    return context->sections[stringTableIndex] + offset;
+    if (symbols[symbolIndex].type == ST_SECTION) {
+        return elf_get_section_name(context, symbols[symbolIndex].index);
+    }
+
+    return elf_get_string(context, section->link, symbols[symbolIndex].name);
 }
 
 /**
@@ -157,7 +206,7 @@ void elf_print(struct ELFContext *context) {
         struct ELFSectionHeader *section = context->sectionHeaders + index;
 
         printf("%5X ", index);
-        printf("%4X %-14s ", section->name, elf_get_section_name(context, section->name));
+        printf("%4X %-14s ", section->name, elf_get_section_name(context, index));
 
         if (section->type < sizeof(sectionTypes)) {
             printf("%-8s ", sectionTypes[section->type]);
@@ -194,10 +243,12 @@ void elf_print(struct ELFContext *context) {
         if (section->type != SHT_SYMTAB)
             continue;
 
-        printf("Symbols: %X %X\n", index, section->size / section->entrySize);
+        printf("Symbols: #%X ", index);
+        printf("entries: %X ", section->size / section->entrySize);
+        printf("strtab: #%X\n", section->link);
         printf("index name                               address   size type    bind    other  index\n");
-        struct ELFSymbolEntry *current = context->sections[index];
-        struct ELFSymbolEntry *end = context->sections[index] + section->size;
+        struct ELFSymbol *current = context->sections[index];
+        struct ELFSymbol *end = context->sections[index] + section->size;
 
         char *strtab = context->sections[section->link];
 
@@ -221,6 +272,7 @@ void elf_print(struct ELFContext *context) {
 
             printf("%6X ", current->other);
             printf("%6X ", current->index);
+            printf("%s ", elf_get_section_name(context, current->index));
             printf("\n");
         }
         printf("\n");
@@ -232,7 +284,10 @@ void elf_print(struct ELFContext *context) {
         if (section->type != SHT_REL)
             continue;
 
-        printf("Relocations: %X %X\n", index, section->size / section->entrySize);
+        printf("Relocations: #%X ", index);
+        printf("entries: %X ", section->size / section->entrySize);
+        printf("symtab: #%X ", section->link);
+        printf("section: #%X\n", section->info);
         printf("offset symbol type    value\n");
         struct ELFRelocation *current = context->sections[index];
         struct ELFRelocation *end = context->sections[index] + section->size;
@@ -255,6 +310,8 @@ void elf_print(struct ELFContext *context) {
             printf("%6X ", current->symbol);
             printf("%4X ", current->type);
             printf("%8X ", value);
+            printf("%s ", elf_get_symbol_name(context, section->link, current->symbol));
+            
             printf("\n");
         }
         printf("\n");
@@ -367,12 +424,12 @@ void elf_close(struct ELFContext *context) {
  */
 int elf_save(struct ELFContext *context, const char *path) {
     FILE *handle = fopen(path, "w+");
-    if(!handle){
+    if (!handle) {
         sprintf(error, "Failed open file for writing");
         return 0;
     }
 
-    if(fwrite(&context->header, sizeof(struct ELFHeader), 1, handle) != 1) {
+    if (fwrite(&context->header, sizeof(struct ELFHeader), 1, handle) != 1) {
         sprintf(error, "Failed to write header");
         goto error;
     }
@@ -392,9 +449,11 @@ int elf_save(struct ELFContext *context, const char *path) {
             goto error;
         }
 
-
         for (uint32_t index = 0; index < context->header.sectionHeader.count; index++) {
             struct ELFSectionHeader *sectionHeader = context->sectionHeaders + index;
+
+            if(sectionHeader->size == 0)
+                continue;
 
             if (fseek(handle, sectionHeader->offset, SEEK_SET) != 0) {
                 sprintf(error, "Failed to seek to section");
@@ -415,40 +474,9 @@ int elf_save(struct ELFContext *context, const char *path) {
     return 0;
 }
 
-static inline void print_section(struct ELFContext *context, struct ELFSectionHeader *section) {
-    printf("%4X %-14s ", section->name, elf_get_section_name(context, section->name));
-
-    if (section->type < sizeof(sectionTypes)) {
-        printf("%-8s ", sectionTypes[section->type]);
-    } else{ 
-        printf("%-8d ", section->type);
-    }
-
-    printf("%7X ", section->address);
-    printf("%6X ", section->offset);
-    printf("%4X ", section->size);
-    printf(section->link ? "%4X " : "     ", section->link);
-    printf(section->info ? "%4X " : "     ", section->info);
-    printf(section->alignment ? "%5X " : "      ", section->alignment);
-    printf(section->entrySize ? "%9X " : "          ", section->entrySize);
-    printf("%5X ", section->flags);
-
-    if (section->flags & SHF_WRITE)
-        printf(" WRITE");
-
-    if (section->flags & SHF_ALLOC)
-        printf(" ALLOC");
-
-    if (section->flags & SHF_EXEC)
-        printf(" EXEC");
-
-    printf("\n");
-}
-
 static inline int elf_section_apply_address(struct ELFContext *context, uint32_t sectionIndex, uint32_t origin) {
     struct ELFSectionHeader *section = context->sectionHeaders + sectionIndex;
     printf("%5X ", sectionIndex);
-    print_section(context, section);
     printf("------------------------------------------------------------------------------------------------------\n");
 
     // - for each symbol table
@@ -467,10 +495,10 @@ static inline int elf_section_apply_address(struct ELFContext *context, uint32_t
 
         uint32_t symbolCount = symtab->size / symtab->entrySize;
 
-        struct ELFSymbolEntry *symbols = context->sections[symtabIndex];
+        struct ELFSymbol *symbols = context->sections[symtabIndex];
 
         for (uint32_t symbolIndex = 0; symbolIndex < symbolCount; symbolIndex++) {
-            struct ELFSymbolEntry *symbol = symbols + symbolIndex;
+            struct ELFSymbol *symbol = symbols + symbolIndex;
             if(symbol->index != sectionIndex)
                 continue;
 
@@ -496,7 +524,7 @@ static inline int elf_section_apply_address(struct ELFContext *context, uint32_t
                     continue;
                 
                 printf("--- ");
-                print_section(context, reltab);
+                //print_section(context, reltab);
 
                 uint8_t *code = context->sections[reltab->info];
                 struct ELFRelocation *relocations = context->sections[reltabIndex];
@@ -573,4 +601,168 @@ int elf_relocate(struct ELFContext *context, uint32_t origin, uint32_t alignment
     }
 
     return 1;
+}
+
+int elf_get_section(struct ELFContext *context, struct ELFSection *section, int16_t index) {
+    if (index >= context->header.sectionHeader.count)
+        return 0;
+
+    section->header = context->sectionHeaders + index;
+    section->data = context->sections ? context->sections[index] : 0;
+
+    if (section->header->entrySize > 0) {
+        section->count = section->header->size / section->header->entrySize;
+    } else {
+        section->count = 0;
+    }
+    return 1;
+}
+
+void elf_finalize(struct ELFContext *context) {
+    uint32_t origin = context->header.headerSize;
+
+    uint32_t align;
+    for (uint16_t index = 1; index < context->header.sectionHeader.count; index++){
+        if(context->sectionHeaders[index].size == 0){
+            context->sectionHeaders[index].offset = 0;    
+            continue;
+        }
+
+        align = 1;
+        if(context->sectionHeaders[index].alignment > align)
+            align = context->sectionHeaders[index].alignment;
+
+        // Align origin to alignmenrs
+        origin+= (align - ((origin - 1) % align)) - 1;
+
+        context->sectionHeaders[index].offset = origin;
+
+        origin+= context->sectionHeaders[index].size;
+    }
+
+    align = sizeof(struct ELFSectionHeader);
+    origin+= (align - ((origin - 1) % align)) - 1;
+    context->header.sectionOffset = origin;
+}
+
+int elf_resize_sections(struct ELFContext *context, uint16_t newSize) {
+    uint16_t currentSize = context->header.sectionHeader.count;
+
+    if(newSize <= currentSize)
+        return newSize == currentSize;
+
+    
+    struct ELFSectionHeader *headers = malloc(newSize * sizeof(struct ELFSectionHeader));
+    memset(headers, 0, newSize * sizeof(struct ELFSectionHeader));
+    memcpy(headers, context->sectionHeaders, currentSize * sizeof(struct ELFSectionHeader));
+    free(context->sectionHeaders);
+    context->sectionHeaders = headers;
+
+    void **sections = malloc(newSize * sizeof(void*));
+    memset(sections, 0, newSize * sizeof(void*));
+    memcpy(sections, context->sections, currentSize * sizeof(void*));
+    free(context->sections);
+    context->sections = sections;
+
+    context->header.sectionHeader.count = newSize;
+    return 1;
+}
+
+static void elf_remap_symbols(struct ELFContext *context, uint16_t fromIndex, uint16_t toIndex){
+    uint16_t count = context->header.sectionHeader.count;
+    struct ELFSectionHeader *section = context->sectionHeaders;
+
+    for (uint16_t sectionIndex = 0; sectionIndex < count; sectionIndex++, section++) {
+        if (section->type != SHT_SYMTAB)
+            continue;
+
+        uint32_t total = section->size / section->entrySize;
+        struct ELFSymbol *symbol = context->sections[sectionIndex];
+        for (uint32_t symbolIndex = 0; symbolIndex < total; symbolIndex++, symbol++) {
+            if(symbol->index == fromIndex)
+                symbol->index = toIndex;
+        }
+    }
+}
+
+static void elf_remap_link_symbol_table(struct ELFContext *context, uint16_t fromIndex, uint16_t toIndex){
+    uint16_t count = context->header.sectionHeader.count;
+    struct ELFSectionHeader *section = context->sectionHeaders;
+
+    for (uint16_t sectionIndex = 0; sectionIndex < count; sectionIndex++, section++) {
+        if (section->type != SHT_SYMTAB)
+            continue;
+
+        if (section->link != fromIndex)
+            continue;
+
+        section->link = toIndex;
+    }
+}
+
+static void elf_remap_link_relocation_table(struct ELFContext *context, uint16_t fromIndex, uint16_t toIndex){
+    uint16_t count = context->header.sectionHeader.count;
+    struct ELFSectionHeader *section = context->sectionHeaders;
+
+    for (uint16_t sectionIndex = 0; sectionIndex < count; sectionIndex++, section++) {
+        if (section->type != SHT_REL)
+            continue;
+
+        if (section->link != fromIndex)
+            continue;
+
+        section->link = toIndex;
+    }
+}
+
+static void elf_remap_info_relocation_table(struct ELFContext *context, uint16_t fromIndex, uint16_t toIndex){
+    uint16_t count = context->header.sectionHeader.count;
+    struct ELFSectionHeader *section = context->sectionHeaders;
+
+    for (uint16_t sectionIndex = 0; sectionIndex < count; sectionIndex++, section++) {
+        if (section->type != SHT_REL)
+            continue;
+
+        if (section->info != fromIndex)
+            continue;
+
+        section->info = toIndex;
+    }
+}
+
+/**
+ * @brief 
+ * @param context 
+ * @param from 
+ * @param to 
+ * @return 
+ */
+int elf_move_section(struct ELFContext *context, uint16_t fromIndex, uint16_t toIndex) {
+    if (toIndex >= context->header.sectionHeader.count)
+        return 0;
+
+    struct ELFSectionHeader *section = context->sectionHeaders + toIndex;
+    if (section->type != SHT_NULL)
+        return 0;
+    
+    memcpy(section, context->sectionHeaders + fromIndex, sizeof(struct ELFSectionHeader));
+    memset(context->sectionHeaders + fromIndex, 0, sizeof(struct ELFSectionHeader));
+
+    context->sections[toIndex] = context->sections[fromIndex];
+    context->sections[fromIndex] = 0;
+
+    if (section->type == SHT_SYMTAB) {
+        elf_remap_link_relocation_table(context, fromIndex, toIndex);
+    } else {
+        elf_remap_symbols(context, fromIndex, toIndex);
+        elf_remap_link_symbol_table(context, fromIndex, toIndex);
+        elf_remap_info_relocation_table(context, fromIndex, toIndex);
+    }
+
+    if (section->type == SHT_STRTAB
+        && context->header.sectionHeader.stringTableIndex == fromIndex)
+        context->header.sectionHeader.stringTableIndex = toIndex;
+    
+
+    return 0;
 }

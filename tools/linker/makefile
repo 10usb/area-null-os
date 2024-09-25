@@ -37,4 +37,9 @@ clean-all: clean
 	@$(foreach x,$(LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean-all)
 	@$(foreach x,$(POSIX_LIBS),$(MAKE) --no-print-directory -C $(dir $(x)) clean-all)
 
-.PHONY: build deps clean clean-all
+test: build
+	./linker alter --origin 8000 test/d.o test/mangle.o
+	./linker inspect test/mangle.o
+	# ./linker --entry start --origin 8000 --format binary loader.bin $(ROOT)loader/obj/entry.o $(ROOT)loader/obj/*/*.o  $(ROOT)libs/libfat-readonly/libfat-readonly.o
+
+.PHONY: build deps clean clean-all test

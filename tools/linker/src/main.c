@@ -24,7 +24,6 @@ static int print_help(int value) {
     return value;
 }
 
-
 const char *options_string[] = {
     "--entry",
     "--origin",
@@ -150,11 +149,42 @@ int main_alter(int argc, const char** argv){
         return 1;
     }
 
-    if (options.origin != 0xFFFFFFFF) {
-        elf_relocate(context, options.origin, 0x1000);
-    }
+    // // Merge string tables
+    // context->header.sectionHeader.count--;
+    // context->header.sectionHeader.stringTableIndex = 7;
 
-    //elf_print(context);
+    // uint32_t offset = context->sectionHeaders[8].offset - context->sectionHeaders[7].offset;
+    // for (int index = 1; index < 8; index++){
+    //     context->sectionHeaders[index].name+= offset;
+    // }
+
+    // uint32_t end = context->sectionHeaders[8].offset + context->sectionHeaders[8].size;
+    // uint32_t size = end - context->sectionHeaders[7].offset;
+    
+    // uint8_t *section = malloc(size);
+    // memcpy(section, context->sections[7], context->sectionHeaders[7].size);
+    // memcpy(section + offset, context->sections[8], context->sectionHeaders[8].size);
+    // free(context->sections[7]);
+    // context->sections[7] = section;
+    // context->sectionHeaders[7].size = size;
+
+
+    // context->sectionHeaders[8].name = context->sectionHeaders[7].name;
+
+
+    // if (options.origin != 0xFFFFFFFF) {
+    //     elf_relocate(context, options.origin, 0x1000);
+    // }
+    elf_resize_sections(context, 20);
+    elf_move_section(context, 0x3, 0xB);
+    elf_move_section(context, 0x6, 0xC);
+    elf_move_section(context, 0x1, 0xD);
+    elf_move_section(context, 0x7, 0xE);
+    elf_move_section(context, 0x8, 0x1);
+    elf_move_section(context, 0x2, 0x8);
+    elf_move_section(context, 0x4, 0x2);
+    
+    elf_finalize(context);
 
     if(!elf_save(context, target)){
         printf("Failed to save '%s'\n\t%s\n", target, elf_last_error());
